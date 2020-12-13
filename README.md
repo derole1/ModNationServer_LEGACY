@@ -1,6 +1,4 @@
 # ModNationServer
-An open source server for modnation racers
-
 Open source C# server for modnation racers
 
 Currently handles regular http and SSL traffic (You will need to supply your own PKCS#12 certificate (can be self signed) and put it with the server executable.
