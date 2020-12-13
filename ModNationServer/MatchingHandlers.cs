@@ -13,6 +13,7 @@ namespace ModNationServer
         public static bool StartConnectHandler(XmlDocument recDoc, XmlDocument resDoc)
         {
             XmlElement method = resDoc.CreateElement("method");
+            //Dont know if this is correct
             method.InnerText = " startLogin ";
             //I sort of just put in what looked like to be response parameters
             string[] paramLst = new string[] { "ServerUUID", "gamename", "username", "StartBombdServerSwitch" };

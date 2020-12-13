@@ -8,29 +8,12 @@ namespace ModNationServer
 {
     static class SessionManager
     {
-        //Would probs make more sense just to compare strings tbh
-        public enum presenceType
-        {
-            CAREER_CHALLENGE = 0,
-            CASUAL_RACE = 1,
-            IDLING = 2,
-            INGAME = 3,
-            IN_STUDIO = 4,
-            KART_PARK_CHALLENGE = 5,
-            LOBBY = 6,
-            OFFLINE = 7,
-            ONLINE = 8,
-            RANKED_RACE = 9,
-            ROAMING = 10,
-            WEB = 11
-        }
-
         //Data structure for an online player
         struct SessionPlayer
         {
             public int online_id;
             public string username;
-            public presenceType presence;
+            public string presence;
         }
 
         //List of players online
@@ -50,7 +33,7 @@ namespace ModNationServer
                 return false;
             }
             int onlineid = 0;
-            string uname = "derole";
+            string uname = "test";
             //Some database code
             //SQLiteDataReader sqReader = DatabaseManager.GetReader(sqlite_cmd
             //    , "SELECT player_id, username FROM Users WHERE psn_id=@psnid;"
@@ -70,7 +53,7 @@ namespace ModNationServer
             SessionPlayer player = new SessionPlayer();
             player.online_id = onlineid;
             player.username = uname;
-            player.presence = presenceType.ONLINE;
+            player.presence = "ONLINE";
             players.Add(sessionid, player);
             playerid = onlineid;
             username = uname;
@@ -82,14 +65,14 @@ namespace ModNationServer
             return players.ContainsKey(sessionid);
         }
 
-        public static void UpdatePresence(string sessionid, presenceType presence)
+        public static void UpdatePresence(string sessionid, string presence)
         {
             SessionPlayer player = players[sessionid];
             player.presence = presence;
             players[sessionid] = player;
         }
 
-        public static presenceType GetPresence(string sessionid)
+        public static string GetPresence(string sessionid)
         {
             return players[sessionid].presence;
         }

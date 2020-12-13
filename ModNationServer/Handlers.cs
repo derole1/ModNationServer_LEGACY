@@ -10,7 +10,7 @@ using System.Data.SQLite;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Security.Cryptography;
-using HttpMultipartParser;
+//using HttpMultipartParser;    //TODO: Find new http form parser class
 
 namespace ModNationServer
 {
@@ -118,7 +118,7 @@ namespace ModNationServer
         public static bool SessionSetPresenceHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc)
         {
             //Updates session presence in the dictionary
-            SessionManager.UpdatePresence(request.Cookies["playerconnect_session_id"].Value, (SessionManager.presenceType)Enum.Parse(typeof(SessionManager.presenceType), url["presence"]));
+            SessionManager.UpdatePresence(request.Cookies["playerconnect_session_id"].Value, url["presence"]);
             XmlElement res = resDoc.CreateElement("response");
             resDoc.ChildNodes[0].AppendChild(res);
             return true;
@@ -402,66 +402,67 @@ namespace ModNationServer
             return true;
         }
 
-        public static bool PlayerCreationCreateHandler(HttpListenerRequest request, HttpListenerResponse response, MultipartFormDataParser url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
-        {
-            int id = DatabaseManager.RandomID();
-            DatabaseManager.NonQuery(sqlite_cmd, "INSERT INTO Player_Creations VALUES(@id,@player_id,@name,@description,@created_at,@rating,@points,@points_today,@points_last_week" +
-                ",@points_this_week,@downloads,@downloads_last_week,@downloads_this_week,@version,@views,@views_last_week,@views_this_week,@tags,@player_creation_type,@parent_creation_id" +
-                ",@parent_player_id,@original_player_id,@requires_dlc,@dlc_keys,@platform,@is_remixable,@longest_hang_time,@longest_drift,@races_started,@races_won,@votes,@races_finished" +
-                ",@best_lap_time,@track_theme,@auto_reset,@ai)"
-                , new SQLiteParameter("@id", id)
-                , new SQLiteParameter("@player_id", "0")
-                , new SQLiteParameter("@name", url.GetParameterValue("player_creation[name]"))
-                , new SQLiteParameter("@description", url.GetParameterValue("player_creation[description]"))
-                , new SQLiteParameter("@created_at", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss+00:00"))
-                , new SQLiteParameter("@rating", "0")
-                , new SQLiteParameter("@points", "0")
-                , new SQLiteParameter("@points_today", "0")
-                , new SQLiteParameter("@points_last_week", "0")
-                , new SQLiteParameter("@points_this_week", "0")
-                , new SQLiteParameter("@downloads", "0")
-                , new SQLiteParameter("@downloads_last_week", "0")
-                , new SQLiteParameter("@downloads_this_week", "0")
-                , new SQLiteParameter("@version", "1")
-                , new SQLiteParameter("@views", "0")
-                , new SQLiteParameter("@views_last_week", "0")
-                , new SQLiteParameter("@views_this_week", "0")
-                , new SQLiteParameter("@tags", url.GetParameterValue("player_creation[tags]"))
-                , new SQLiteParameter("@player_creation_type", url.GetParameterValue("player_creation[player_creation_type]"))
-                , new SQLiteParameter("@parent_creation_id", url.GetParameterValue("player_creation[parent_creation_id]"))
-                , new SQLiteParameter("@parent_player_id", url.GetParameterValue("player_creation[parent_player_id]"))
-                , new SQLiteParameter("@original_player_id", url.GetParameterValue("player_creation[original_player_id]"))
-                , new SQLiteParameter("@requires_dlc", url.GetParameterValue("player_creation[requires_dlc]"))
-                , new SQLiteParameter("@dlc_keys", url.GetParameterValue("player_creation[dlc_keys]"))
-                , new SQLiteParameter("@platform", url.GetParameterValue("player_creation[platform]"))
-                , new SQLiteParameter("@is_remixable", url.GetParameterValue("player_creation[is_remixable]"))
-                , new SQLiteParameter("@longest_hang_time", url.GetParameterValue("player_creation[longest_hang_time]"))
-                , new SQLiteParameter("@longest_drift", url.GetParameterValue("player_creation[longest_drift]"))
-                , new SQLiteParameter("@races_started", url.GetParameterValue("player_creation[races_started]"))
-                , new SQLiteParameter("@races_won", url.GetParameterValue("player_creation[races_won]"))
-                , new SQLiteParameter("@votes", url.GetParameterValue("player_creation[votes]"))
-                , new SQLiteParameter("@races_finished", url.GetParameterValue("player_creation[races_finished]"))
-                , new SQLiteParameter("@best_lap_time", url.GetParameterValue("player_creation[best_lap_time]"))
-                , new SQLiteParameter("@track_theme", url.GetParameterValue("player_creation[track_theme]"))
-                , new SQLiteParameter("@auto_reset", url.GetParameterValue("player_creation[auto_reset]"))
-                , new SQLiteParameter("@ai", url.GetParameterValue("player_creation[ai]")));
-            Directory.CreateDirectory("player_creations\\" + id.ToString());
-            byte[] fileBuffer = new byte[url.Files[0].Data.Length];
-            url.Files[0].Data.Read(fileBuffer, 0, fileBuffer.Length);   //With large creations this read can cause errors
-            File.WriteAllBytes("player_creations\\" + id.ToString() + "\\" + url.Files[0].FileName + ".bin", fileBuffer);
-            fileBuffer = new byte[url.Files[1].Data.Length];
-            url.Files[1].Data.Read(fileBuffer, 0, fileBuffer.Length);
-            File.WriteAllBytes("player_creations\\" + id.ToString() + "\\" + url.Files[1].FileName + "_image.png", fileBuffer);
-            new Bitmap(Image.FromStream(new MemoryStream(fileBuffer)), 128, 128).Save("player_creations\\" + id.ToString() + "\\" + url.Files[1].FileName + "_image_128x128.png", ImageFormat.Png);
-            XmlElement res = resDoc.CreateElement("response");
-            XmlElement creations = resDoc.CreateElement("player_creations");
-            //TODO
-            creations.SetAttribute("id", id.ToString());
-            //TODO: Get creations
-            res.AppendChild(creations);
-            resDoc.ChildNodes[0].AppendChild(res);
-            return true;
-        }
+        //TODO: Find new http form parser class
+        //public static bool PlayerCreationCreateHandler(HttpListenerRequest request, HttpListenerResponse response, MultipartFormDataParser url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
+        //{
+        //    int id = DatabaseManager.RandomID();
+        //    DatabaseManager.NonQuery(sqlite_cmd, "INSERT INTO Player_Creations VALUES(@id,@player_id,@name,@description,@created_at,@rating,@points,@points_today,@points_last_week" +
+        //        ",@points_this_week,@downloads,@downloads_last_week,@downloads_this_week,@version,@views,@views_last_week,@views_this_week,@tags,@player_creation_type,@parent_creation_id" +
+        //        ",@parent_player_id,@original_player_id,@requires_dlc,@dlc_keys,@platform,@is_remixable,@longest_hang_time,@longest_drift,@races_started,@races_won,@votes,@races_finished" +
+        //        ",@best_lap_time,@track_theme,@auto_reset,@ai)"
+        //        , new SQLiteParameter("@id", id)
+        //        , new SQLiteParameter("@player_id", "0")
+        //        , new SQLiteParameter("@name", url.GetParameterValue("player_creation[name]"))
+        //        , new SQLiteParameter("@description", url.GetParameterValue("player_creation[description]"))
+        //        , new SQLiteParameter("@created_at", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss+00:00"))
+        //        , new SQLiteParameter("@rating", "0")
+        //        , new SQLiteParameter("@points", "0")
+        //        , new SQLiteParameter("@points_today", "0")
+        //        , new SQLiteParameter("@points_last_week", "0")
+        //        , new SQLiteParameter("@points_this_week", "0")
+        //        , new SQLiteParameter("@downloads", "0")
+        //        , new SQLiteParameter("@downloads_last_week", "0")
+        //        , new SQLiteParameter("@downloads_this_week", "0")
+        //        , new SQLiteParameter("@version", "1")
+        //        , new SQLiteParameter("@views", "0")
+        //        , new SQLiteParameter("@views_last_week", "0")
+        //        , new SQLiteParameter("@views_this_week", "0")
+        //        , new SQLiteParameter("@tags", url.GetParameterValue("player_creation[tags]"))
+        //        , new SQLiteParameter("@player_creation_type", url.GetParameterValue("player_creation[player_creation_type]"))
+        //        , new SQLiteParameter("@parent_creation_id", url.GetParameterValue("player_creation[parent_creation_id]"))
+        //        , new SQLiteParameter("@parent_player_id", url.GetParameterValue("player_creation[parent_player_id]"))
+        //        , new SQLiteParameter("@original_player_id", url.GetParameterValue("player_creation[original_player_id]"))
+        //        , new SQLiteParameter("@requires_dlc", url.GetParameterValue("player_creation[requires_dlc]"))
+        //        , new SQLiteParameter("@dlc_keys", url.GetParameterValue("player_creation[dlc_keys]"))
+        //        , new SQLiteParameter("@platform", url.GetParameterValue("player_creation[platform]"))
+        //        , new SQLiteParameter("@is_remixable", url.GetParameterValue("player_creation[is_remixable]"))
+        //        , new SQLiteParameter("@longest_hang_time", url.GetParameterValue("player_creation[longest_hang_time]"))
+        //        , new SQLiteParameter("@longest_drift", url.GetParameterValue("player_creation[longest_drift]"))
+        //        , new SQLiteParameter("@races_started", url.GetParameterValue("player_creation[races_started]"))
+        //        , new SQLiteParameter("@races_won", url.GetParameterValue("player_creation[races_won]"))
+        //        , new SQLiteParameter("@votes", url.GetParameterValue("player_creation[votes]"))
+        //        , new SQLiteParameter("@races_finished", url.GetParameterValue("player_creation[races_finished]"))
+        //        , new SQLiteParameter("@best_lap_time", url.GetParameterValue("player_creation[best_lap_time]"))
+        //        , new SQLiteParameter("@track_theme", url.GetParameterValue("player_creation[track_theme]"))
+        //        , new SQLiteParameter("@auto_reset", url.GetParameterValue("player_creation[auto_reset]"))
+        //        , new SQLiteParameter("@ai", url.GetParameterValue("player_creation[ai]")));
+        //    Directory.CreateDirectory("player_creations\\" + id.ToString());
+        //    byte[] fileBuffer = new byte[url.Files[0].Data.Length];
+        //    url.Files[0].Data.Read(fileBuffer, 0, fileBuffer.Length);   //With large creations this read can cause errors
+        //    File.WriteAllBytes("player_creations\\" + id.ToString() + "\\" + url.Files[0].FileName + ".bin", fileBuffer);
+        //    fileBuffer = new byte[url.Files[1].Data.Length];
+        //    url.Files[1].Data.Read(fileBuffer, 0, fileBuffer.Length);
+        //    File.WriteAllBytes("player_creations\\" + id.ToString() + "\\" + url.Files[1].FileName + "_image.png", fileBuffer);
+        //    new Bitmap(Image.FromStream(new MemoryStream(fileBuffer)), 128, 128).Save("player_creations\\" + id.ToString() + "\\" + url.Files[1].FileName + "_image_128x128.png", ImageFormat.Png);
+        //    XmlElement res = resDoc.CreateElement("response");
+        //    XmlElement creations = resDoc.CreateElement("player_creations");
+        //    //TODO
+        //    creations.SetAttribute("id", id.ToString());
+        //    //TODO: Get creations
+        //    res.AppendChild(creations);
+        //    resDoc.ChildNodes[0].AppendChild(res);
+        //    return true;
+        //}
 
         public static bool PlayerCreationComplaintCreateHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
         {

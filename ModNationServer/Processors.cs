@@ -12,7 +12,7 @@ using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 using System.Data.SQLite;
-using HttpMultipartParser;
+//using HttpMultipartParser;
 
 namespace ModNationServer
 {
@@ -169,8 +169,8 @@ namespace ModNationServer
                                     break;
                                 case "player_creation.create.xml":
                                     respond = false;
-                                    //TODO: The multipart form data parser we use bugs out with large creations like tracks, might need a custom solution
-                                    respond = Handlers.PlayerCreationCreateHandler(request, response, MultipartFormDataParser.Parse(new MemoryStream(recvBuffer)), resDoc, sqlite_cmd);
+                                    //TODO: The multipart form data parser we use bugs out with large creations like tracks, find or create something that can handle large creations
+                                    //respond = Handlers.PlayerCreationCreateHandler(request, response, MultipartFormDataParser.Parse(new MemoryStream(recvBuffer)), resDoc, sqlite_cmd);
                                     break;
                                 case "player_creation_complaint.create.xml":
                                     respond = Handlers.PlayerCreationComplaintCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
