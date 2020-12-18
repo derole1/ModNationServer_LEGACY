@@ -45,7 +45,8 @@ namespace ModNationServer
                 Directory.CreateDirectory("creations");
             }
             //Set up server threads
-            Thread ms = new Thread(() => MainServer("http://" + ip + ":" + port.ToString() + "/"));
+            //Thread ms = new Thread(() => MainServer("http://" + ip + ":" + port.ToString() + "/"));
+            Thread ms = new Thread(() => MainServer("http://*:" + port.ToString() + "/"));
             Thread ss = new Thread(() => SessionServer(IPAddress.Any, matchingPort, "output.pfx", "1234"));
             ms.Start();
             ss.Start();

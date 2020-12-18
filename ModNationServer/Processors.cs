@@ -12,7 +12,7 @@ using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 using System.Data.SQLite;
-//using HttpMultipartParser;
+using HttpMultipartParser;
 
 namespace ModNationServer
 {
@@ -30,7 +30,19 @@ namespace ModNationServer
             System.IO.Stream output = response.OutputStream;
             //Reads the http data
             byte[] recvBuffer = new byte[request.ContentLength64];
-            input.Read(recvBuffer, 0, recvBuffer.Length);
+            if (request.ContentLength64 > 0)
+            {
+                int recvBytes = 0;
+                MemoryStream ms = new MemoryStream();
+                do
+                {
+                    byte[] tempBuf = new byte[20000];
+                    int bytes = input.Read(tempBuf, 0, tempBuf.Length);
+                    ms.Write(tempBuf, 0, bytes);
+                    recvBytes += bytes;
+                } while (recvBytes < request.ContentLength64);
+                recvBuffer = ms.ToArray();
+            }
             byte[] buffer = recvBuffer;
             //Creates receiving and response xml documents
             XmlDocument recDoc = new XmlDocument();
@@ -100,14 +112,14 @@ namespace ModNationServer
                     //
                     try
                     {
-                        response.SetCookie(new Cookie("playerconnect_session_id", request.Cookies["playerconnect_session_id"].Value));
+                        //response.SetCookie(new Cookie("playerconnect_session_id", request.Cookies["playerconnect_session_id"].Value));
                     } catch { }
                     //response.SetCookie(new Cookie("path", "/"));
                     break;
             }
             if (isXml)
             {
-                //response.ContentType = "text/xml";
+                //response.ContentType = "text/xml; charset=utf-8";
                 //Game requires the "charset=utf-8" part to properly decode some xml responses
                 response.ContentType = "application/xml; charset=utf-8";
                 int paramStart = request.RawUrl.IndexOf('?') + 1;
@@ -168,9 +180,9 @@ namespace ModNationServer
                                     respond = Handlers.PlayerCreationVerifyHandler(request, response, urlEncodedData, resDoc);
                                     break;
                                 case "player_creation.create.xml":
-                                    respond = false;
-                                    //TODO: The multipart form data parser we use bugs out with large creations like tracks, find or create something that can handle large creations
-                                    //respond = Handlers.PlayerCreationCreateHandler(request, response, MultipartFormDataParser.Parse(new MemoryStream(recvBuffer)), resDoc, sqlite_cmd);
+                                    File.WriteAllBytes("recvcreation.bin", recvBuffer);
+                                    Console.WriteLine(request.ContentLength64);
+                                    respond = Handlers.PlayerCreationCreateHandler(request, response, MultipartFormDataParser.Parse(new MemoryStream(recvBuffer)), resDoc, sqlite_cmd);
                                     break;
                                 case "player_creation_complaint.create.xml":
                                     respond = Handlers.PlayerCreationComplaintCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
