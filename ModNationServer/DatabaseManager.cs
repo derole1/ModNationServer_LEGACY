@@ -73,10 +73,39 @@ namespace ModNationServer
             catch { }
             try
             {
-                sqlite_cmd.CommandText = "CREATE TABLE Player_Creations(id int, player_id int, name varchar, description varchar, created_at datetime, rating real, points real, points_today real, points_last_week real" +
-                    ", points_this_week real, downloads int, downloads_last_week int, downloads_this_week int, version int, views int, views_last_week int, views_this_week int, tags varchar, player_creation_type varchar, parent_creation_id int" +
-                    ", parent_player_id int, original_player_id int, requires_dlc bool, dlc_keys varchar, platform varchar, is_remixable bool, longest_hang_time real, longest_drift float" +
+                sqlite_cmd.CommandText = "CREATE TABLE Player_Creations(id int, player_id int, name varchar, description varchar, created_at datetime, version int, tags varchar, player_creation_type varchar" +
+                    ", parent_creation_id int, parent_player_id int, original_player_id int, requires_dlc bool, dlc_keys varchar, platform varchar, is_remixable bool, longest_hang_time real, longest_drift float" +
                     ", races_started int, races_won int, votes int, races_finished int, best_lap_time real, track_theme int, auto_reset bool, ai bool, UNIQUE(id));";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
+                sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Ratings(id int, rating real, comments varchar);";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
+                sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Views(id int, created_at datetime);";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
+                sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Downloads(id int, created_at datetime);";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
+                sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Points(id int, player_id int, created_at datetime);";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
+                sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Ratings(id int, rating real, created_at datetime);";
                 sqlite_cmd.ExecuteNonQuery();
             }
             catch { }

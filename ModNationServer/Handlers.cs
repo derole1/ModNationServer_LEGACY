@@ -58,18 +58,13 @@ namespace ModNationServer
 
         public static bool SessionLoginHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
         {
-            string sessionid = SessionManager.RandomSessionID(30);
-            try
-            {
-                response.SetCookie(new Cookie("playerconnect_session_id", sessionid));
-            } catch { }
-            int playerid;
-            string username;
-            bool respond = SessionManager.CreateSession(sessionid, url["ticket"], sqlite_cmd, out playerid, out username);
+            string sessionID;
+            response.Cookies["playerconnect_session_id"].Value = SessionManager.AppendExtendSessionID(request.Cookies["playerconnect_session_id"].Value, out sessionID);
+            bool respond = SessionManager.CreateSession(sessionID, url["ticket"], sqlite_cmd);
             XmlElement res = resDoc.CreateElement("response");
             XmlElement logindata = resDoc.CreateElement("login_data");
-            logindata.SetAttribute("player_id", playerid.ToString());
-            logindata.SetAttribute("player_name", username);
+            logindata.SetAttribute("player_id", SessionManager.playerTickets[sessionID].user_id.ToString());
+            logindata.SetAttribute("player_name", SessionManager.playerTickets[sessionID].online_id);
             logindata.SetAttribute("presence", "ONLINE");
             logindata.SetAttribute("platform", url["platform"]);
             //TODO
@@ -207,10 +202,63 @@ namespace ModNationServer
             return true;
         }
 
+        public static bool PlayerCreationListHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
+        {
+            XmlElement res = resDoc.CreateElement("response");
+            XmlElement creations = resDoc.CreateElement("player_creations");
+            SQLiteDataReader sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT * FROM Player_Creations WHERE player_creation_type=@player_creation_type AND platform=@platform LIMIT @per_page OFFSET @page_skip;"
+                , new SQLiteParameter("@page_skip", (int.Parse(url["per_page"]) * (int.Parse(url["page"]) - 1)).ToString())
+                , new SQLiteParameter("@per_page", tryGetParameter(url, "per_page"))
+                //, new SQLiteParameter("@sort_column", tryGetParameter(url, "sort_column"))
+                //, new SQLiteParameter("@sort_order", tryGetParameter(url, "sort_order"))
+                , new SQLiteParameter("@player_creation_type", tryGetParameter(url, "filters[player_creation_type]"))
+                , new SQLiteParameter("@platform", tryGetParameter(url, "platform")));
+            int count = 0;
+            while (sqReader.HasRows)
+            {
+                //Im probably gonna get shit on for this clusterfuck, please tell me if theres a better way to do this
+                //Also it desperately needs sorting out
+                XmlElement playercreation = resDoc.CreateElement("player_creation");
+                playercreation.SetAttribute("id", DatabaseManager.GetValue(sqReader, "id").ToString());
+                playercreation.SetAttribute("name", DatabaseManager.GetValue(sqReader, "name").ToString());
+                playercreation.SetAttribute("description", DatabaseManager.GetValue(sqReader, "description").ToString());
+                playercreation.SetAttribute("moderation_status", "APPROVED");
+                playercreation.SetAttribute("created_at", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
+                playercreation.SetAttribute("updated_at", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
+                playercreation.SetAttribute("rating", DatabaseManager.GetValue(sqReader, "rating").ToString());
+                playercreation.SetAttribute("star_rating", "1.0");
+                playercreation.SetAttribute("points", DatabaseManager.GetValue(sqReader, "points").ToString());
+                playercreation.SetAttribute("downloads", DatabaseManager.GetValue(sqReader, "downloads").ToString());
+                playercreation.SetAttribute("views", DatabaseManager.GetValue(sqReader, "views").ToString());
+                playercreation.SetAttribute("player_creation_type", DatabaseManager.GetValue(sqReader, "player_creation_type").ToString());
+                playercreation.SetAttribute("races_started", DatabaseManager.GetValue(sqReader, "races_started").ToString());
+                creations.AppendChild(playercreation);
+                sqReader.Read();
+                count++;
+            }
+            //TODO: Page system
+            creations.SetAttribute("total", count.ToString());
+            creations.SetAttribute("row_start", (int.Parse(url["per_page"]) * (int.Parse(url["page"]) - 1)).ToString());
+            creations.SetAttribute("row_end", (int.Parse(url["per_page"]) * (int.Parse(url["page"]) - 1) + sqReader.FieldCount).ToString());
+            creations.SetAttribute("page", url["page"]);
+            creations.SetAttribute("total_pages", "1");
+            sqReader.Close();
+
+            res.AppendChild(creations);
+            resDoc.ChildNodes[0].AppendChild(res);
+            return true;
+        }
+
         public static bool PlayerCreationShowHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
         {
             XmlElement res = resDoc.CreateElement("response");
             XmlElement creations = resDoc.CreateElement("player_creations");
+            if (url["is_counted"] == "true")
+            {
+                DatabaseManager.NonQuery(sqlite_cmd, "INSERT INTO Player_Creation_Views VALUES (@id,@created_at)"
+                , new SQLiteParameter("@id", url["id"])
+                , new SQLiteParameter("@created_at", DateTime.UtcNow.ToString("dd-MM-yyyy HH:mm:ss")));
+            }
             SQLiteDataReader sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT * FROM Player_Creations WHERE id=@id LIMIT 1;"
                 , new SQLiteParameter("@id", url["id"]));
             //TODO: Sort through what actually needs to be returned for each packet, for now I just throw everything at it from the database about the creation
@@ -227,17 +275,7 @@ namespace ModNationServer
                 playercreation.SetAttribute("updated_at", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
                 playercreation.SetAttribute("rating", DatabaseManager.GetValue(sqReader, "rating").ToString());
                 playercreation.SetAttribute("star_rating", "1.0");    //TODO
-                playercreation.SetAttribute("points", DatabaseManager.GetValue(sqReader, "points").ToString());
-                playercreation.SetAttribute("points_today", DatabaseManager.GetValue(sqReader, "points_today").ToString());
-                playercreation.SetAttribute("points_this_week", DatabaseManager.GetValue(sqReader, "points_this_week").ToString());
-                playercreation.SetAttribute("points_last_week", DatabaseManager.GetValue(sqReader, "points_last_week").ToString());
-                playercreation.SetAttribute("downloads", DatabaseManager.GetValue(sqReader, "downloads").ToString());
-                playercreation.SetAttribute("downloads_last_week", DatabaseManager.GetValue(sqReader, "downloads_last_week").ToString());
-                playercreation.SetAttribute("downloads_this_week", DatabaseManager.GetValue(sqReader, "downloads_this_week").ToString());
                 playercreation.SetAttribute("version", DatabaseManager.GetValue(sqReader, "version").ToString());
-                playercreation.SetAttribute("views", DatabaseManager.GetValue(sqReader, "views").ToString());
-                playercreation.SetAttribute("views_last_week", DatabaseManager.GetValue(sqReader, "views_last_week").ToString());
-                playercreation.SetAttribute("views_this_week", DatabaseManager.GetValue(sqReader, "views_this_week").ToString());
                 playercreation.SetAttribute("tags", DatabaseManager.GetValue(sqReader, "tags").ToString());
                 playercreation.SetAttribute("player_creation_type", DatabaseManager.GetValue(sqReader, "player_creation_type").ToString());
                 playercreation.SetAttribute("parent_creation_id", DatabaseManager.GetValue(sqReader, "parent_creation_id").ToString());
@@ -263,8 +301,91 @@ namespace ModNationServer
                 creations.AppendChild(playercreation);
                 sqReader.Read();
             }
-            //creations.SetAttribute("TEMPtag", tryGetParameter(url, "filters[player_creation_type]"));
-            //TODO: Get creations
+            sqReader.Close();
+            foreach (XmlElement element in creations.ChildNodes)
+            {
+                //views
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creation_Views WHERE id=@id", new SQLiteParameter("@id", element.Attributes["id"].InnerText));
+                int views = sqReader.GetInt32(0);
+                sqReader.Close();
+                element.SetAttribute("views", views.ToString());
+                //last week
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creation_Views WHERE id=@id AND created_at BETWEEN @start_date AND @end_date"
+                    , new SQLiteParameter("@id", element.Attributes["id"].InnerText)
+                    , new SQLiteParameter("@start_date", StartOfWeek(DateTime.Now.AddDays(-7), DayOfWeek.Monday).ToString("dd-MM-yyyy HH:mm:ss"))
+                    , new SQLiteParameter("@end_date", EndOfWeek(DateTime.Now.AddDays(-7), DayOfWeek.Sunday).ToString("dd-MM-yyyy HH:mm:ss")));
+                int viewslastweek = sqReader.GetInt32(0);
+                sqReader.Close();
+                element.SetAttribute("views_last_week", viewslastweek.ToString());
+                //this week
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creation_Views WHERE id=@id AND created_at BETWEEN @start_date AND @end_date"
+                    , new SQLiteParameter("@id", element.Attributes["id"].InnerText)
+                    , new SQLiteParameter("@start_date", StartOfWeek(DateTime.Now, DayOfWeek.Monday).ToString("dd-MM-yyyy HH:mm:ss"))
+                    , new SQLiteParameter("@end_date", EndOfWeek(DateTime.Now, DayOfWeek.Sunday).ToString("dd-MM-yyyy HH:mm:ss")));
+                int viewsthisweek = sqReader.GetInt32(0);
+                sqReader.Close();
+                element.SetAttribute("views_this_week", viewsthisweek.ToString());
+
+                //downloads
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creation_Downloads WHERE id=@id", new SQLiteParameter("@id", element.Attributes["id"].InnerText));
+                int downloads = sqReader.GetInt32(0);
+                sqReader.Close();
+                element.SetAttribute("downloads", downloads.ToString());
+                //last week
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creation_Downloads WHERE id=@id AND created_at BETWEEN @start_date AND @end_date"
+                    , new SQLiteParameter("@id", element.Attributes["id"].InnerText)
+                    , new SQLiteParameter("@start_date", StartOfWeek(DateTime.Now.AddDays(-7), DayOfWeek.Monday).ToString("dd-MM-yyyy HH:mm:ss"))
+                    , new SQLiteParameter("@end_date", EndOfWeek(DateTime.Now.AddDays(-7), DayOfWeek.Sunday).ToString("dd-MM-yyyy HH:mm:ss")));
+                int downloadslastweek = sqReader.GetInt32(0);
+                sqReader.Close();
+                element.SetAttribute("downloads_last_week", downloadslastweek.ToString());
+                //this week
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creation_Downloads WHERE id=@id AND created_at BETWEEN @start_date AND @end_date"
+                    , new SQLiteParameter("@id", element.Attributes["id"].InnerText)
+                    , new SQLiteParameter("@start_date", StartOfWeek(DateTime.Now, DayOfWeek.Monday).ToString("dd-MM-yyyy HH:mm:ss"))
+                    , new SQLiteParameter("@end_date", EndOfWeek(DateTime.Now, DayOfWeek.Sunday).ToString("dd-MM-yyyy HH:mm:ss")));
+                int downloadsthisweek = sqReader.GetInt32(0);
+                sqReader.Close();
+                element.SetAttribute("downloads_this_week", downloadsthisweek.ToString());
+
+                //points
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creation_Points WHERE id=@id", new SQLiteParameter("@id", element.Attributes["id"].InnerText));
+                int points = sqReader.GetInt32(0);
+                sqReader.Close();
+                element.SetAttribute("points", points.ToString());
+                //today
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creation_Points WHERE id=@id AND created_at BETWEEN @start_date AND @end_date"
+                   , new SQLiteParameter("@id", element.Attributes["id"].InnerText)
+                   , new SQLiteParameter("@start_date", DateTime.Now.Date.ToString("dd-MM-yyyy HH:mm:ss"))
+                   , new SQLiteParameter("@end_date", DateTime.Now.Date.AddDays(1).ToString("dd-MM-yyyy HH:mm:ss")));
+                int pointstoday = sqReader.GetInt32(0);
+                sqReader.Close();
+                element.SetAttribute("points_today", pointstoday.ToString());
+                //yesterday
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creation_Points WHERE id=@id AND created_at BETWEEN @start_date AND @end_date"
+                   , new SQLiteParameter("@id", element.Attributes["id"].InnerText)
+                   , new SQLiteParameter("@start_date", DateTime.Now.Date.AddDays(-1).ToString("dd-MM-yyyy HH:mm:ss"))
+                   , new SQLiteParameter("@end_date", DateTime.Now.Date.ToString("dd-MM-yyyy HH:mm:ss")));
+                int pointsyesterday = sqReader.GetInt32(0);
+                sqReader.Close();
+                element.SetAttribute("points_yesterday", pointsyesterday.ToString());
+                //last week
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creation_Points WHERE id=@id AND created_at BETWEEN @start_date AND @end_date"
+                    , new SQLiteParameter("@id", element.Attributes["id"].InnerText)
+                    , new SQLiteParameter("@start_date", StartOfWeek(DateTime.Now.AddDays(-7), DayOfWeek.Monday).ToString("dd-MM-yyyy HH:mm:ss"))
+                    , new SQLiteParameter("@end_date", EndOfWeek(DateTime.Now.AddDays(-7), DayOfWeek.Sunday).ToString("dd-MM-yyyy HH:mm:ss")));
+                int pointslastweek = sqReader.GetInt32(0);
+                sqReader.Close();
+                element.SetAttribute("points_last_week", pointslastweek.ToString());
+                //this week
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creation_Points WHERE id=@id AND created_at BETWEEN @start_date AND @end_date"
+                    , new SQLiteParameter("@id", element.Attributes["id"].InnerText)
+                    , new SQLiteParameter("@start_date", StartOfWeek(DateTime.Now, DayOfWeek.Monday).ToString("dd-MM-yyyy HH:mm:ss"))
+                    , new SQLiteParameter("@end_date", EndOfWeek(DateTime.Now, DayOfWeek.Sunday).ToString("dd-MM-yyyy HH:mm:ss")));
+                int pointsthisweek = sqReader.GetInt32(0);
+                sqReader.Close();
+                element.SetAttribute("points_this_week", pointsthisweek.ToString());
+            }
             res.AppendChild(creations);
             resDoc.ChildNodes[0].AppendChild(res);
             return true;
@@ -274,6 +395,12 @@ namespace ModNationServer
         {
             XmlElement res = resDoc.CreateElement("response");
             XmlElement creations = resDoc.CreateElement("player_creations");
+            if (url["is_counted"] == "true")
+            {
+                DatabaseManager.NonQuery(sqlite_cmd, "INSERT INTO Player_Creation_Downloads VALUES (@id,@created_at)"
+                , new SQLiteParameter("@id", url["id"])
+                , new SQLiteParameter("@created_at", DateTime.UtcNow.ToString("dd-MM-yyyy HH:mm:ss")));
+            }
             SQLiteDataReader sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT * FROM Player_Creations WHERE id=@id LIMIT 1;"
                 , new SQLiteParameter("@id", url["id"]));
             if (sqReader.HasRows)
@@ -284,44 +411,24 @@ namespace ModNationServer
                 playercreation.SetAttribute("username", "test");    //TODO
                 playercreation.SetAttribute("description", DatabaseManager.GetValue(sqReader, "description").ToString());
                 playercreation.SetAttribute("moderation_status", "APPROVED");
-                playercreation.SetAttribute("moderation_status_id", "0");
                 playercreation.SetAttribute("created_at", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
                 playercreation.SetAttribute("updated_at", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
-                playercreation.SetAttribute("rating", DatabaseManager.GetValue(sqReader, "rating").ToString());
-                playercreation.SetAttribute("star_rating", "1.0");
+                //TODO
                 playercreation.SetAttribute("points", DatabaseManager.GetValue(sqReader, "points").ToString());
                 playercreation.SetAttribute("points_today", DatabaseManager.GetValue(sqReader, "points_today").ToString());
+                playercreation.SetAttribute("points_yesterday", DatabaseManager.GetValue(sqReader, "points_today").ToString());
                 playercreation.SetAttribute("points_this_week", DatabaseManager.GetValue(sqReader, "points_this_week").ToString());
                 playercreation.SetAttribute("points_last_week", DatabaseManager.GetValue(sqReader, "points_last_week").ToString());
-                playercreation.SetAttribute("downloads", DatabaseManager.GetValue(sqReader, "downloads").ToString());
-                playercreation.SetAttribute("downloads_last_week", DatabaseManager.GetValue(sqReader, "downloads_last_week").ToString());
-                playercreation.SetAttribute("downloads_this_week", DatabaseManager.GetValue(sqReader, "downloads_this_week").ToString());
+                //
                 playercreation.SetAttribute("version", DatabaseManager.GetValue(sqReader, "version").ToString());
-                playercreation.SetAttribute("views", DatabaseManager.GetValue(sqReader, "views").ToString());
-                playercreation.SetAttribute("views_last_week", DatabaseManager.GetValue(sqReader, "views_last_week").ToString());
-                playercreation.SetAttribute("views_this_week", DatabaseManager.GetValue(sqReader, "views_this_week").ToString());
                 playercreation.SetAttribute("tags", DatabaseManager.GetValue(sqReader, "tags").ToString());
                 playercreation.SetAttribute("player_creation_type", DatabaseManager.GetValue(sqReader, "player_creation_type").ToString());
-                playercreation.SetAttribute("parent_creation_id", DatabaseManager.GetValue(sqReader, "parent_creation_id").ToString());
                 playercreation.SetAttribute("parent_player_id", DatabaseManager.GetValue(sqReader, "parent_player_id").ToString());
                 playercreation.SetAttribute("parent_player_username", "test");    //TODO
                 playercreation.SetAttribute("player_id", "1");    //TODO
                 playercreation.SetAttribute("original_player_id", "1");    //TODO
                 playercreation.SetAttribute("original_player_username", "test");    //TODO
-                //playercreation.SetAttribute("requires_dlc", DatabaseManager.GetValue(sqReader, "requires_dlc").ToString().ToLower());
-                playercreation.SetAttribute("dlc_keys", DatabaseManager.GetValue(sqReader, "dlc_keys").ToString());
-                playercreation.SetAttribute("platform", DatabaseManager.GetValue(sqReader, "platform").ToString());
                 playercreation.SetAttribute("is_remixable", DatabaseManager.GetValue(sqReader, "is_remixable").ToString().ToLower());
-                playercreation.SetAttribute("longest_hang_time", DatabaseManager.GetValue(sqReader, "longest_hang_time").ToString());
-                playercreation.SetAttribute("longest_drift", DatabaseManager.GetValue(sqReader, "longest_drift").ToString());
-                playercreation.SetAttribute("races_started", DatabaseManager.GetValue(sqReader, "races_started").ToString());
-                playercreation.SetAttribute("races_won", DatabaseManager.GetValue(sqReader, "races_won").ToString());
-                playercreation.SetAttribute("votes", DatabaseManager.GetValue(sqReader, "votes").ToString());
-                playercreation.SetAttribute("races_finished", DatabaseManager.GetValue(sqReader, "races_finished").ToString());
-                playercreation.SetAttribute("best_lap_time", DatabaseManager.GetValue(sqReader, "best_lap_time").ToString());
-                playercreation.SetAttribute("track_theme", DatabaseManager.GetValue(sqReader, "track_theme").ToString());
-                playercreation.SetAttribute("auto_reset", DatabaseManager.GetValue(sqReader, "auto_reset").ToString().ToLower());
-                playercreation.SetAttribute("ai", DatabaseManager.GetValue(sqReader, "ai").ToString().ToLower());
                 byte[] creationData = File.ReadAllBytes("player_creations\\" + url["id"] + "\\data.bin");
                 playercreation.SetAttribute("data_md5", BitConverter.ToString(MD5.Create().ComputeHash(creationData)).Replace("-", "").ToLower());
                 playercreation.SetAttribute("data_size", creationData.Length.ToString());
@@ -348,21 +455,32 @@ namespace ModNationServer
             return true;
         }
 
-        public static bool PlayerCreationListHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc)
+        public static bool PlayerCreationRatingCreateHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
         {
             XmlElement res = resDoc.CreateElement("response");
-            XmlElement creations = resDoc.CreateElement("player_creations");
-            //TODO
-            creations.SetAttribute("total", "0");
-            creations.SetAttribute("row_start", "0");
-            creations.SetAttribute("row_end", "0");
-            creations.SetAttribute("page", "1");
-            creations.SetAttribute("total_pages", "0");
-            //TODO: Get creations
-            res.AppendChild(creations);
+            DatabaseManager.NonQuery(sqlite_cmd, "INSERT INTO Player_Creation_Ratings VALUES (@id,@rating,@comments)"
+                , new SQLiteParameter("@id", url["player_creation_rating[player_creation_id]"])
+                , new SQLiteParameter("@rating", url["player_creation_rating[rating]"])
+                , new SQLiteParameter("@comments", tryGetParameter(url, "player_creation_rating[comments]")));
             resDoc.ChildNodes[0].AppendChild(res);
             return true;
         }
+
+        //public static bool PlayerCreationListHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc)
+        //{
+        //    XmlElement res = resDoc.CreateElement("response");
+        //    XmlElement creations = resDoc.CreateElement("player_creations");
+        //    //TODO
+        //    creations.SetAttribute("total", "0");
+        //    creations.SetAttribute("row_start", "0");
+        //    creations.SetAttribute("row_end", "0");
+        //    creations.SetAttribute("page", "1");
+        //    creations.SetAttribute("total_pages", "0");
+        //    //TODO: Get creations
+        //    res.AppendChild(creations);
+        //    resDoc.ChildNodes[0].AppendChild(res);
+        //    return true;
+        //}
 
         public static bool PlayerCreationVerifyHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc)
         {
@@ -381,8 +499,7 @@ namespace ModNationServer
         public static bool PlayerCreationCreateHandler(HttpListenerRequest request, HttpListenerResponse response, MultipartFormDataParser url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
         {
             int id = DatabaseManager.RandomID();
-            DatabaseManager.NonQuery(sqlite_cmd, "INSERT INTO Player_Creations VALUES(@id,@player_id,@name,@description,@created_at,@rating,@points,@points_today,@points_last_week" +
-                ",@points_this_week,@downloads,@downloads_last_week,@downloads_this_week,@version,@views,@views_last_week,@views_this_week,@tags,@player_creation_type,@parent_creation_id" +
+            DatabaseManager.NonQuery(sqlite_cmd, "INSERT INTO Player_Creations VALUES(@id,@player_id,@name,@description,@created_at,@rating,@version,@tags,@player_creation_type,@parent_creation_id" +
                 ",@parent_player_id,@original_player_id,@requires_dlc,@dlc_keys,@platform,@is_remixable,@longest_hang_time,@longest_drift,@races_started,@races_won,@votes,@races_finished" +
                 ",@best_lap_time,@track_theme,@auto_reset,@ai)"
                 , new SQLiteParameter("@id", id)
@@ -391,17 +508,7 @@ namespace ModNationServer
                 , new SQLiteParameter("@description", url.GetParameterValue("player_creation[description]"))
                 , new SQLiteParameter("@created_at", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss+00:00"))
                 , new SQLiteParameter("@rating", "0")
-                , new SQLiteParameter("@points", "0")
-                , new SQLiteParameter("@points_today", "0")
-                , new SQLiteParameter("@points_last_week", "0")
-                , new SQLiteParameter("@points_this_week", "0")
-                , new SQLiteParameter("@downloads", "0")
-                , new SQLiteParameter("@downloads_last_week", "0")
-                , new SQLiteParameter("@downloads_this_week", "0")
                 , new SQLiteParameter("@version", "1")
-                , new SQLiteParameter("@views", "0")
-                , new SQLiteParameter("@views_last_week", "0")
-                , new SQLiteParameter("@views_this_week", "0")
                 , new SQLiteParameter("@tags", url.GetParameterValue("player_creation[tags]"))
                 , new SQLiteParameter("@player_creation_type", url.GetParameterValue("player_creation[player_creation_type]"))
                 , new SQLiteParameter("@parent_creation_id", url.GetParameterValue("player_creation[parent_creation_id]"))
@@ -656,6 +763,24 @@ namespace ModNationServer
             {
                 return "";
             }
+        }
+
+        public static DateTime StartOfWeek(DateTime dt, DayOfWeek startOfWeek)
+        {
+            DateTime firstDayInWeek = dt.Date;
+            while (firstDayInWeek.DayOfWeek != startOfWeek)
+                firstDayInWeek = firstDayInWeek.AddDays(-1);
+
+            return firstDayInWeek;
+        }
+
+        public static DateTime EndOfWeek(this DateTime dt, DayOfWeek endOfWeek)
+        {
+            DateTime lastDayInWeek = dt.Date;
+            while (lastDayInWeek.DayOfWeek != endOfWeek + 1)
+                lastDayInWeek = lastDayInWeek.AddDays(1);
+
+            return lastDayInWeek;
         }
     }
 }

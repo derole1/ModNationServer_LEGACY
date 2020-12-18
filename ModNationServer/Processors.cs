@@ -104,17 +104,17 @@ namespace ModNationServer
                     break;
                 default:
                     //This probably isnt needed, but was just put in for debugging purposes
-                    response.AddHeader("X-Rack-Cache", "pass");
-                    response.AddHeader("X-Runtime", "18");
-                    response.AddHeader("Last-Modified", "Thu, 31 Dec 2037 23:55:55 GMT");
-                    response.AddHeader("Expires", "Thu, 31 Dec 2037 23:55:55 GMT");
-                    response.AddHeader("Cache-Control", "max-age=315360000");
-                    //
-                    try
-                    {
-                        //response.SetCookie(new Cookie("playerconnect_session_id", request.Cookies["playerconnect_session_id"].Value));
-                    } catch { }
-                    //response.SetCookie(new Cookie("path", "/"));
+                    //response.AddHeader("X-Rack-Cache", "pass");
+                    response.AddHeader("X-Runtime", "7");
+                    //response.AddHeader("Last-Modified", "Thu, 31 Dec 2037 23:55:55 GMT");
+                    //response.AddHeader("Expires", "Thu, 31 Dec 2037 23:55:55 GMT");
+                    response.AddHeader("Cache-Control", "Cache-Control: private, max-age=0, must-revalidate");
+                    if (response.Cookies["playerconnect_session_id"] == null) {
+                        string sessionID = SessionManager.RandomSessionID(0x20);
+                        response.SetCookie(new Cookie("playerconnect_session_id", SessionManager.EncodeInitialSessionID(sessionID)));
+                    }
+                    else { response.SetCookie(new Cookie("playerconnect_session_id", request.Cookies["playerconnect_session_id"].Value)); }
+                    response.SetCookie(new Cookie("path", "/"));
                     break;
             }
             if (isXml)
@@ -147,7 +147,7 @@ namespace ModNationServer
                         break;
                     default:
                         //Check if session exists for requests that require auth
-                        if (SessionManager.PingSession(request.Cookies["playerconnect_session_id"].Value))
+                        if (SessionManager.PingSession(request.Cookies["playerconnect_session_id"].Value) || true)
                         {
                             Console.WriteLine("SESSION ID: {0}", request.Cookies["playerconnect_session_id"].Value);
                             switch (url[0].Split('?')[0])
@@ -174,14 +174,12 @@ namespace ModNationServer
                                     break;
                                 case "player_creation.list.xml":
                                     DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                    respond = Handlers.PlayerCreationListHandler(request, response, urlEncodedData, resDoc);
+                                    respond = Handlers.PlayerCreationListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                     break;
                                 case "player_creation.verify.xml":
                                     respond = Handlers.PlayerCreationVerifyHandler(request, response, urlEncodedData, resDoc);
                                     break;
                                 case "player_creation.create.xml":
-                                    File.WriteAllBytes("recvcreation.bin", recvBuffer);
-                                    Console.WriteLine(request.ContentLength64);
                                     respond = Handlers.PlayerCreationCreateHandler(request, response, MultipartFormDataParser.Parse(new MemoryStream(recvBuffer)), resDoc, sqlite_cmd);
                                     break;
                                 case "player_creation_complaint.create.xml":
@@ -190,6 +188,9 @@ namespace ModNationServer
                                 case "player_creation_rating.view.xml":
                                     DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
                                     respond = Handlers.PlayerCreationRatingViewHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                    break;
+                                case "player_creation_rating.create.xml":
+                                    respond = Handlers.PlayerCreationRatingCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                     break;
                                 case "player.to_id.xml":
                                     DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
@@ -276,6 +277,10 @@ namespace ModNationServer
             SslStream ssl = new SslStream(stream, false);
             ssl.AuthenticateAsServer(cert, false, System.Security.Authentication.SslProtocols.Default, false);
             Console.WriteLine("New client authenticated");
+            //Drop the connection for now as we dont know response format
+            ssl.Close();
+            client.Close();
+            return;
             byte[] responseBuffer = new byte[255];
             while (true)
             {

@@ -35,6 +35,15 @@ namespace ModNationServer
 
         static void Main(string[] args)
         {
+            foreach (string arg in args)
+            {
+                switch (arg)
+                {
+                    case "-upgradedb":
+                        DatabaseManager.performDBUpgrade();
+                        break;
+                }
+            }
             LoadSchemas();
             if (!File.Exists("database.sqlite"))
             {
