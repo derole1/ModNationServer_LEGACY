@@ -109,12 +109,7 @@ namespace ModNationServer
                     //response.AddHeader("Last-Modified", "Thu, 31 Dec 2037 23:55:55 GMT");
                     //response.AddHeader("Expires", "Thu, 31 Dec 2037 23:55:55 GMT");
                     response.AddHeader("Cache-Control", "Cache-Control: private, max-age=0, must-revalidate");
-                    if (response.Cookies["playerconnect_session_id"] == null) {
-                        string sessionID = SessionManager.RandomSessionID(0x20);
-                        response.SetCookie(new Cookie("playerconnect_session_id", SessionManager.EncodeInitialSessionID(sessionID)));
-                    }
-                    else { response.SetCookie(new Cookie("playerconnect_session_id", request.Cookies["playerconnect_session_id"].Value)); }
-                    response.SetCookie(new Cookie("path", "/"));
+                    //response.SetCookie(new Cookie("playerconnect_session_id", request.Cookies["playerconnect_session_id"].Value));
                     break;
             }
             if (isXml)
@@ -130,6 +125,8 @@ namespace ModNationServer
                         respond = Handlers.PreferencesUpdateHandler(request, response, urlEncodedData, resDoc);
                         break;
                     case "policy.view.xml":
+                        string sessionID = SessionManager.RandomSessionID(0x20);
+                        response.SetCookie(new Cookie("playerconnect_session_id", SessionManager.EncodeInitialSessionID(sessionID)));
                         DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
                         respond = Handlers.PolicyViewHandler(request, response, urlEncodedData, resDoc);
                         break;
@@ -137,7 +134,8 @@ namespace ModNationServer
                         respond = Handlers.PolicyAcceptHandler(request, response, urlEncodedData, resDoc);
                         break;
                     case "session.login_np.xml":
-                        respond = Handlers.SessionLoginHandler(request, response, urlEncodedData, resDoc, null);
+                        response.SetCookie(new Cookie("path", "/"));
+                        respond = Handlers.SessionLoginHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                         break;
                     case "session.ping.xml":
                         respond = Handlers.SessionPingHandler(request, response, urlEncodedData, resDoc);
@@ -149,7 +147,7 @@ namespace ModNationServer
                         //Check if session exists for requests that require auth
                         if (SessionManager.PingSession(request.Cookies["playerconnect_session_id"].Value) || true)
                         {
-                            Console.WriteLine("SESSION ID: {0}", request.Cookies["playerconnect_session_id"].Value);
+                            Console.WriteLine("SESSION ID: {0}", SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value));
                             switch (url[0].Split('?')[0])
                             {
                                 case "session.set_presence.xml":
@@ -182,6 +180,9 @@ namespace ModNationServer
                                 case "player_creation.create.xml":
                                     respond = Handlers.PlayerCreationCreateHandler(request, response, MultipartFormDataParser.Parse(new MemoryStream(recvBuffer)), resDoc, sqlite_cmd);
                                     break;
+                                case "player_creation.destroy.xml":
+                                    respond = Handlers.PlayerCreationDestroyHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                    break;
                                 case "player_creation_complaint.create.xml":
                                     respond = Handlers.PlayerCreationComplaintCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                     break;
@@ -191,6 +192,10 @@ namespace ModNationServer
                                     break;
                                 case "player_creation_rating.create.xml":
                                     respond = Handlers.PlayerCreationRatingCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                    break;
+                                case "player_creation_rating.list.xml":
+                                    DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                    respond = Handlers.PlayerCreationRatingListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                     break;
                                 case "player.to_id.xml":
                                     DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
@@ -207,6 +212,9 @@ namespace ModNationServer
                                     break;
                                 case "player_metric.update.xml":
                                     respond = Handlers.PlayerMetricUpdateHandler(request, response, urlEncodedData, resDoc);
+                                    break;
+                                case "player_avatar.update.xml":
+                                    Console.WriteLine("AVATAR UPDATE REQUEST\n\n\n\n\n\n\n\n\n\n\n\n\n\n!!!!");
                                     break;
                                 case "mail_message.list.xml":
                                     DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
@@ -229,10 +237,11 @@ namespace ModNationServer
                                     respond = Handlers.LeaderboardPlayerStatsHandler(request, response, urlEncodedData, resDoc);
                                     break;
                                 case "announcement.list.xml":
-                                    respond = Handlers.AnnouncementListHandler(request, response, urlEncodedData, resDoc);
+                                    respond = Handlers.AnnouncementListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                     break;
                                 case "player.info.xml":
-                                    respond = Handlers.PlayerInfoHandler(request, response, urlEncodedData, resDoc);
+                                    DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                    respond = Handlers.PlayerInfoHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                     break;
                                 case "server.select.xml":
                                     respond = Handlers.ServerSelectHandler(request, response, urlEncodedData, resDoc);

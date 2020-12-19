@@ -31,7 +31,7 @@ namespace ModNationServer
         public struct SessionPlayer
         {
             public string ip_address;
-            public int player_id;
+            public ulong player_id;
             public string username;
             public string platform;
             public string presence;
@@ -51,11 +51,30 @@ namespace ModNationServer
         public static bool CreateSession(string sessionid, string psnticket, SQLiteCommand sqlite_cmd)
         {
             //Decode PSN ticket data
+            //sessionid = GetSessionID(sessionid);
             NPTicket ticket = DecodePSNTicket(psnticket);
             if (players.ContainsKey(sessionid)) { return false; }
+            SQLiteDataReader sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT player_id FROM Users WHERE player_id=@id", new SQLiteParameter("@id", ticket.user_id.ToString()));
+            if (!sqReader.HasRows)
+            {
+                sqReader.Close();
+                DatabaseManager.NonQuery(sqlite_cmd, "INSERT INTO Users VALUES (@player_id,@username,@city,@country,@created_at,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,@player_creation_quota,0,@province,@quote,0,0,@skill_level,@skill_level_id,@skill_level_name,@state,0,0,0,0,0)"
+                    , new SQLiteParameter("@player_id", ticket.user_id)
+                    , new SQLiteParameter("@username", ticket.online_id)
+                    , new SQLiteParameter("@city", "")
+                    , new SQLiteParameter("@country", ticket.region)
+                    , new SQLiteParameter("@created_at", DateTime.Now.ToString("dd-MM-yyyy HH:mm:ss"))
+                    , new SQLiteParameter("@player_creation_quota", 30)
+                    , new SQLiteParameter("@province", "")
+                    , new SQLiteParameter("@quote", "")
+                    , new SQLiteParameter("@skill_level", "Newcomer I")
+                    , new SQLiteParameter("@skill_level_id", "1")
+                    , new SQLiteParameter("@skill_level_name", "Newcomer I")
+                    , new SQLiteParameter("@state", ""));
+            } else { sqReader.Close(); }
             SessionPlayer player = new SessionPlayer();
-            //player.player_id = onlineid;
-            //player.username = uname;
+            player.player_id = ticket.user_id;
+            player.username = ticket.online_id;
             player.presence = "ONLINE";
             players.Add(sessionid, player);
             playerTickets.Add(sessionid, ticket);
@@ -64,15 +83,12 @@ namespace ModNationServer
 
         public static bool PingSession(string sessionid)
         {
-            byte[] ticket = Convert.FromBase64String(sessionid);
-            BinaryReader br = new BinaryReader(ticket);
-            br.popArray(0x12);
-            sessionid = Encoding.ASCII.GetString(br.popArray(0x20));
-            return players.ContainsKey(sessionid);
+            return players.ContainsKey(GetSessionID(sessionid));
         }
 
         public static void UpdatePresence(string sessionid, string presence)
         {
+            sessionid = GetSessionID(sessionid);
             SessionPlayer player = players[sessionid];
             player.presence = presence;
             players[sessionid] = player;
@@ -80,7 +96,7 @@ namespace ModNationServer
 
         public static string GetPresence(string sessionid)
         {
-            return players[sessionid].presence;
+            return players[GetSessionID(sessionid)].presence;
         }
 
         static Random random = new Random();
@@ -95,7 +111,7 @@ namespace ModNationServer
                 sessionID = new string(Enumerable.Repeat(chars, length)
                   .Select(s => s[random.Next(s.Length)]).ToArray());
             } while (players.ContainsKey(sessionID));
-            sessionID = EncodeInitialSessionID(sessionID);
+            //sessionID = EncodeInitialSessionID(sessionID);
             return sessionID;
         }
 
@@ -110,12 +126,19 @@ namespace ModNationServer
             return Convert.ToBase64String(br.getRes());
         }
 
-        public static string AppendExtendSessionID(string sessionID, out string ID)
+        public static string GetSessionID(string base64ID)
+        {
+            byte[] oldTicket = Convert.FromBase64String(base64ID);
+            Console.WriteLine(Encoding.ASCII.GetString(oldTicket));
+            BinaryReader br = new BinaryReader(oldTicket);
+            br.popArray(0x12);
+            return Encoding.ASCII.GetString(br.popArray(0x20));
+        }
+
+        public static string AppendExtendSessionID(string sessionID)
         {
             byte[] oldTicket = Convert.FromBase64String(sessionID);
             BinaryReader br = new BinaryReader(oldTicket);
-            br.popArray(0x12);
-            ID = Encoding.ASCII.GetString(br.popArray(0x20));
             br.pushArray(oldTicket);
             br.insertUInt32(0x117B0804, 0);
             //TODO: Properly figure out data structure
@@ -174,9 +197,9 @@ namespace ModNationServer
         static void AppendPlayerConnectParameter(BinaryReader br, string name, string value, UInt16 nameType, UInt16 valueType)
         {
             br.pushUInt16(nameType);
-            br.pushArray(Encoding.ASCII.GetBytes("ip_address"));
+            br.pushArray(Encoding.ASCII.GetBytes(name));
             br.pushUInt16(valueType);
-            br.pushArray(Encoding.ASCII.GetBytes("127.0.0.1"));
+            br.pushArray(Encoding.ASCII.GetBytes(value));
         }
     }
 }

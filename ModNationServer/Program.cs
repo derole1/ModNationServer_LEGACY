@@ -45,6 +45,7 @@ namespace ModNationServer
                 }
             }
             LoadSchemas();
+            ServerValues.Init();
             if (!File.Exists("database.sqlite"))
             {
                 DatabaseManager.performDBUpgrade();
@@ -59,6 +60,9 @@ namespace ModNationServer
             Thread ss = new Thread(() => SessionServer(IPAddress.Any, matchingPort, "output.pfx", "1234"));
             ms.Start();
             ss.Start();
+            //Start up statistic thread (To update downloads/views this/last week etc)
+            Thread st = new Thread(() => StaticticThread());
+            st.Start();
             //Listen for console commands
             while (true)
             {
@@ -114,6 +118,29 @@ namespace ModNationServer
             {
                 Console.WriteLine("Loaded {0}", "resources\\" + Path.GetFileName(file));
                 Processors.xmlSchemas.Add("resources\\" + Path.GetFileName(file), File.ReadAllBytes(file));
+            }
+        }
+
+        //Checks and updates statistics
+        static void StaticticThread()
+        {
+            DayOfWeek lastCheckDay = DateTime.Now.DayOfWeek;
+            while (true)
+            {
+                //Sleep for an hour
+                //Thread.Sleep(3600000);
+                Thread.Sleep(10000);
+                Console.WriteLine("Statistics checkup!");
+                if (DateTime.Now.DayOfWeek == DayOfWeek.Monday && lastCheckDay == DayOfWeek.Sunday)
+                {
+                    SQLiteConnection sqlite_conn = new SQLiteConnection(DatabaseManager.connectionString);
+                    sqlite_conn.Open();
+                    SQLiteCommand sqlite_cmd = sqlite_conn.CreateCommand();
+                    sqlite_cmd.CommandText = "UPDATE Player_Creations SET downloads_last_week=downloads_this_week, downloads_this_week=0, views_last_week=views_this_week, views_this_week=0;";
+                    sqlite_cmd.ExecuteNonQuery();
+                    sqlite_conn.Close();
+                }
+                lastCheckDay = DateTime.Now.DayOfWeek;
             }
         }
     }
