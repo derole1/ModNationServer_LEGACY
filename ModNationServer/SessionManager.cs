@@ -129,7 +129,6 @@ namespace ModNationServer
         public static string GetSessionID(string base64ID)
         {
             byte[] oldTicket = Convert.FromBase64String(base64ID);
-            Console.WriteLine(Encoding.ASCII.GetString(oldTicket));
             BinaryReader br = new BinaryReader(oldTicket);
             br.popArray(0x12);
             return Encoding.ASCII.GetString(br.popArray(0x20));

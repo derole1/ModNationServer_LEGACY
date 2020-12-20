@@ -299,12 +299,23 @@ namespace ModNationServer
             if (sort_column != "") { sort_column = "ORDER BY " + sort_column + " "; }
             string sort_order = DatabaseManager.SanitizeString(tryGetParameter(url, "sort_order"));
             if (sort_order != "") { sort_order = sort_order + " "; }
-            sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT * FROM Player_Creations WHERE player_creation_type=@player_creation_type AND platform=@platform AND deleted='false' AND player_id=@player_id " + sort_column + sort_order + "LIMIT @per_page OFFSET @page_skip;"
+            string username = DatabaseManager.SanitizeString(tryGetParameter(url, "filters[username]"));
+            if (username != "")
+            {
+                string[] usernameSplit = username.Split(',');
+                username = "AND (";
+                foreach (string name in usernameSplit)
+                {
+                    username += "player_id=" + GetIDFromUserName(name, sqlite_cmd) + " ";
+                    username += "OR ";
+                }
+                username = username.Substring(0, username.Length - 4) + ") ";
+            }
+            sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT * FROM Player_Creations WHERE player_creation_type=@player_creation_type AND platform=@platform AND deleted='false' " + username + sort_column + sort_order + "LIMIT @per_page OFFSET @page_skip;"
                 , new SQLiteParameter("@page_skip", (int.Parse(url["per_page"]) * (int.Parse(url["page"]) - 1)).ToString())
                 , new SQLiteParameter("@per_page", tryGetParameter(url, "per_page"))
                 , new SQLiteParameter("@player_creation_type", tryGetParameter(url, "filters[player_creation_type]"))
-                , new SQLiteParameter("@platform", tryGetParameter(url, "platform"))
-                , new SQLiteParameter("@player_id", GetIDFromUserName(tryGetParameter(url, "filters[username]"), sqlite_cmd)));
+                , new SQLiteParameter("@platform", tryGetParameter(url, "platform")));
             int count = 0;
             while (sqReader.HasRows)
             {
@@ -370,7 +381,15 @@ namespace ModNationServer
             string tags = DatabaseManager.SanitizeString(tryGetParameter(url, "search_tags"));
             if (tags != "") { tags = "AND tags LIKE '%" + tags + "%' "; }
             string username = DatabaseManager.SanitizeString(tryGetParameter(url, "username"));
-            if (username != "") { username = "AND player_id=" + GetIDFromUserName(username, sqlite_cmd) + " "; }
+            if (username != "")
+            {
+                string[] usernameSplit = username.Split(',');
+                username = "";
+                foreach (string name in usernameSplit)
+                {
+                    username += "AND player_id=" + GetIDFromUserName(name, sqlite_cmd) + " ";
+                }
+            }
             sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT * FROM Player_Creations WHERE player_creation_type=@player_creation_type AND platform=@platform AND deleted='false' " + search + tags + username + "LIMIT @per_page OFFSET @page_skip;"
                 , new SQLiteParameter("@page_skip", (int.Parse(url["per_page"]) * (int.Parse(url["page"]) - 1)).ToString())
                 , new SQLiteParameter("@per_page", tryGetParameter(url, "per_page"))

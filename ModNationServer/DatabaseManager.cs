@@ -18,7 +18,7 @@ namespace ModNationServer
             {
                 sqlite_cmd.Parameters.Add(param);
             }
-            Console.WriteLine(sqlite_cmd.CommandText);
+            //Console.WriteLine(sqlite_cmd.CommandText);
             SQLiteDataReader sqReader = sqlite_cmd.ExecuteReader();
             sqReader.Read();
             return sqReader;
