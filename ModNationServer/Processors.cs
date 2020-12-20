@@ -174,6 +174,10 @@ namespace ModNationServer
                                     DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
                                     respond = Handlers.PlayerCreationListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                     break;
+                                case "player_creation.search.xml":
+                                    DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                    respond = Handlers.PlayerCreationSearchHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                    break;
                                 case "player_creation.verify.xml":
                                     respond = Handlers.PlayerCreationVerifyHandler(request, response, urlEncodedData, resDoc);
                                     break;
@@ -182,6 +186,10 @@ namespace ModNationServer
                                     break;
                                 case "player_creation.destroy.xml":
                                     respond = Handlers.PlayerCreationDestroyHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                    break;
+                                case "player_creation.friends_view.xml":
+                                    DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                    respond = Handlers.PlayerCreationFriendsViewHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                     break;
                                 case "player_creation_complaint.create.xml":
                                     respond = Handlers.PlayerCreationComplaintCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
@@ -243,6 +251,25 @@ namespace ModNationServer
                                     DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
                                     respond = Handlers.PlayerInfoHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                     break;
+                                case "player_rating.create.xml":
+                                    respond = Handlers.PlayerRatingCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                    break;
+                                case "player_complaint.create.xml":
+                                    respond = Handlers.PlayerComplaintCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                    break;
+                                case "favorite_player.create.xml":
+                                    respond = Handlers.FavoritePlayerCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                    break;
+                                case "favorite_player.list.xml":
+                                    DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                    respond = Handlers.FavoritePlayerListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                    break;
+                                case "favorite_player.remove.xml":
+                                    respond = Handlers.FavoritePlayerRemoveHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                    break;
+                                case "player_profile.update.xml":
+                                    respond = Handlers.PlayerProfileUpdateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                    break;
                                 case "server.select.xml":
                                     respond = Handlers.ServerSelectHandler(request, response, urlEncodedData, resDoc);
                                     break;
@@ -287,9 +314,9 @@ namespace ModNationServer
             ssl.AuthenticateAsServer(cert, false, System.Security.Authentication.SslProtocols.Default, false);
             Console.WriteLine("New client authenticated");
             //Drop the connection for now as we dont know response format
-            ssl.Close();
-            client.Close();
-            return;
+            //ssl.Close();
+            //client.Close();
+            //return;
             byte[] responseBuffer = new byte[255];
             while (true)
             {

@@ -87,10 +87,13 @@ namespace ModNationServer
             Console.WriteLine("Listening...");
             while (true)
             {
-                //Get listener context and pass to a new thread
-                HttpListenerContext context = listener.GetContext();
-                Console.WriteLine("New request!");
-                new Thread(() => Processors.MainServerProcessor(context)).Start();
+                try
+                {
+                    //Get listener context and pass to a new thread
+                    HttpListenerContext context = listener.GetContext();
+                    Console.WriteLine("New request!");
+                    new Thread(() => Processors.MainServerProcessor(context)).Start();
+                } catch { }
             }
         }
 
@@ -104,9 +107,11 @@ namespace ModNationServer
             Console.WriteLine("Session server listening on {0}:{1}", ip, port);
             while (true)
             {
-                //Get TCPClient and pass to a new thread
-                TcpClient client = listener.AcceptTcpClient();
-                new Thread(() => Processors.SessionServerProcessor(client, serverCertificate)).Start();
+                try {
+                    //Get TCPClient and pass to a new thread
+                    TcpClient client = listener.AcceptTcpClient();
+                    new Thread(() => Processors.SessionServerProcessor(client, serverCertificate)).Start();
+                } catch { }
             }
         }
 
@@ -128,8 +133,7 @@ namespace ModNationServer
             while (true)
             {
                 //Sleep for an hour
-                //Thread.Sleep(3600000);
-                Thread.Sleep(10000);
+                Thread.Sleep(3600000);
                 Console.WriteLine("Statistics checkup!");
                 if (DateTime.Now.DayOfWeek == DayOfWeek.Monday && lastCheckDay == DayOfWeek.Sunday)
                 {

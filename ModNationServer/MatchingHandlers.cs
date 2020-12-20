@@ -14,10 +14,10 @@ namespace ModNationServer
         {
             XmlElement method = resDoc.CreateElement("method");
             //Dont know if this is correct
-            method.InnerText = " startLogin ";
+            method.InnerText = " netcodeTransaction ";
             //I sort of just put in what looked like to be response parameters
-            string[] paramLst = new string[] { "ServerUUID", "gamename", "username", "StartBombdServerSwitch" };
-            string[] valueLst = new string[] { "00000000-0000-0000-0000-000000000000", "testgame", "test", "False" };
+            string[] paramLst = new string[] { "bombd_version", "bombd_builddate", "bombd_OS", "serveruuid", "username", "userid", "serverTime" };
+            string[] valueLst = new string[] { "0.0", "2020-01-01 11:00:00", "0", "00000000-0000-0000-0000-000000000000", "test", "1", "2020-01-01 11:00:00" };
             for (int i=0; i<paramLst.Length; i++)
             {
                 XmlElement param = resDoc.CreateElement("param");

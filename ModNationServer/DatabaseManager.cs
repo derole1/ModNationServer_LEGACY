@@ -18,7 +18,7 @@ namespace ModNationServer
             {
                 sqlite_cmd.Parameters.Add(param);
             }
-            //Console.WriteLine(sqlite_cmd.CommandText);
+            Console.WriteLine(sqlite_cmd.CommandText);
             SQLiteDataReader sqReader = sqlite_cmd.ExecuteReader();
             sqReader.Read();
             return sqReader;
@@ -80,6 +80,24 @@ namespace ModNationServer
             catch { }
             try
             {
+                sqlite_cmd.CommandText = "CREATE TABLE User_Ratings(player_id bigint, rating real);";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
+                sqlite_cmd.CommandText = "CREATE TABLE User_Favorite(player_id bigint, favorite_player_id bigint);";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
+                sqlite_cmd.CommandText = "CREATE TABLE User_Complaints(player_id int, player_comments varchar, player_complaint_reason varchar);";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
                 sqlite_cmd.CommandText = "CREATE TABLE Player_Creations(id int, player_id int, name varchar, description varchar, created_at datetime, updated_at datetime, downloads int, downloads_this_week int, downloads_last_week int" +
                     ", views int, views_this_week int, views_last_week int, points int, points_today int, points_yesterday int, points_this_week int, points_last_week int, rating real, version int, tags varchar, player_creation_type varchar" +
                     ", parent_creation_id int, parent_player_id int, original_player_id int, requires_dlc bool, dlc_keys varchar, platform varchar, is_remixable bool, longest_hang_time real, longest_drift real" +
@@ -89,7 +107,7 @@ namespace ModNationServer
             catch { }
             try
             {
-                sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Ratings(id int, rating real, comments varchar);";
+                sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Ratings(id int, player_id bigint, rating real, comments varchar);";
                 sqlite_cmd.ExecuteNonQuery();
             }
             catch { }
