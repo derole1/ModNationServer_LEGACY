@@ -67,7 +67,7 @@ namespace ModNationServer
             SQLiteCommand sqlite_cmd = sqlite_conn.CreateCommand();
             try
             {
-                sqlite_cmd.CommandText = "CREATE TABLE Users(player_id bigint, username varchar, city varchar, country varchar, created_at datetime, creator_points int" +
+                sqlite_cmd.CommandText = "CREATE TABLE Users(psn_id bigint, player_id bigint, username varchar, city varchar, country varchar, created_at datetime, creator_points int" +
                     ", creator_points_last_week int, creator_points_this_week int, experience_ponts int, experience_points_last_week int" +
                     ", experience_points_this_week int, longest_drift real, longest_hang_time real, longest_win_streak int, online_disconnected int" +
                     ", online_finished int, online_finished_last_week int, online_finished_this_week int, online_forfeit int, online_races int" +

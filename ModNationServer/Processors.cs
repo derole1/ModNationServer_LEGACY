@@ -153,7 +153,7 @@ namespace ModNationServer
                             break;
                         default:
                             //Check if session exists for requests that require auth
-                            if (SessionManager.PingSession(request.Cookies["playerconnect_session_id"].Value) || true)
+                            if (SessionManager.PingSession(request.Cookies["playerconnect_session_id"].Value))
                             {
                                 Console.WriteLine("SESSION ID: {0}", SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value));
                                 switch (url[0].Split('?')[0])
@@ -311,7 +311,7 @@ namespace ModNationServer
                     response.ContentLength64 = buffer.Length;
                     output.Write(buffer, 0, buffer.Length);
                 }
-             } catch (Exception e) { File.AppendAllText("error.log", e.ToString() + "\n\n"); }
+             } catch (Exception e) { try { File.AppendAllText("error.log", e.ToString() + "\n\n"); } catch { } }
              output.Close();
         }
 

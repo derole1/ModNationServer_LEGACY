@@ -54,12 +54,17 @@ namespace ModNationServer
             //sessionid = GetSessionID(sessionid);
             NPTicket ticket = DecodePSNTicket(psnticket);
             if (players.ContainsKey(sessionid)) { return false; }
-            SQLiteDataReader sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT player_id FROM Users WHERE player_id=@id", new SQLiteParameter("@id", ticket.user_id.ToString()));
+            SQLiteDataReader sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT player_id FROM Users WHERE psn_id=@id", new SQLiteParameter("@id", ticket.user_id.ToString()));
+            int id = 1;
             if (!sqReader.HasRows)
             {
                 sqReader.Close();
-                DatabaseManager.NonQuery(sqlite_cmd, "INSERT INTO Users VALUES (@player_id,@username,@city,@country,@created_at,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,@player_creation_quota,0,@province,@quote,0,0,@skill_level,@skill_level_id,@skill_level_name,@state,0,0,0,0,0)"
-                    , new SQLiteParameter("@player_id", ticket.user_id)
+                sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT player_id FROM Users ORDER BY player_id DESC LIMIT 1;");
+                if (sqReader.HasRows) { id = sqReader.GetInt32(0) + 1; }
+                sqReader.Close();
+                DatabaseManager.NonQuery(sqlite_cmd, "INSERT INTO Users VALUES (@psn_id,@player_id,@username,@city,@country,@created_at,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,@player_creation_quota,0,@province,@quote,0,0,@skill_level,@skill_level_id,@skill_level_name,@state,0,0,0,0,0)"
+                    , new SQLiteParameter("@psn_id", ticket.user_id.ToString())
+                    , new SQLiteParameter("@player_id", id)
                     , new SQLiteParameter("@username", ticket.online_id)
                     , new SQLiteParameter("@city", "")
                     , new SQLiteParameter("@country", ticket.region)
@@ -71,9 +76,9 @@ namespace ModNationServer
                     , new SQLiteParameter("@skill_level_id", "1")
                     , new SQLiteParameter("@skill_level_name", "Newcomer I")
                     , new SQLiteParameter("@state", ""));
-            } else { sqReader.Close(); }
+            } else { id = sqReader.GetInt32(0); sqReader.Close(); }
             SessionPlayer player = new SessionPlayer();
-            player.player_id = ticket.user_id;
+            player.player_id = (ulong)id;
             player.username = ticket.online_id;
             player.presence = "ONLINE";
             players.Add(sessionid, player);
@@ -177,7 +182,8 @@ namespace ModNationServer
             br.popArray(0x04);
             ticket.online_id = Encoding.ASCII.GetString(br.popArray(0x20)).Trim('\0');
             br.popArray(0x04);
-            ticket.region = Encoding.ASCII.GetString(br.popArray(0x04)).Trim('\0');
+            //ticket.region = Encoding.ASCII.GetString(br.popArray(0x04)).Trim('\0');
+            ticket.region = "br";
             br.popArray(0x04);
             ticket.domain = Encoding.ASCII.GetString(br.popArray(0x04)).Trim('\0');
             br.popArray(0x04);

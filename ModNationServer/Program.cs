@@ -50,10 +50,10 @@ namespace ModNationServer
             {
                 DatabaseManager.performDBUpgrade();
             }
-            if (!Directory.Exists("creations"))
-            {
-                Directory.CreateDirectory("creations");
-            }
+            //if (!Directory.Exists("creations"))
+            //{
+            //    Directory.CreateDirectory("creations");
+            //}
             //Set up server threads
             //Thread ms = new Thread(() => MainServer("http://" + ip + ":" + port.ToString() + "/"));
             Thread ms = new Thread(() => MainServer("http://*:" + port.ToString() + "/"));

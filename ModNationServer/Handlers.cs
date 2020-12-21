@@ -37,7 +37,7 @@ namespace ModNationServer
             XmlElement preferences = resDoc.CreateElement("policy");
             preferences.SetAttribute("id", "1");
             //TODO: Implement read from user profile
-            preferences.SetAttribute("is_accepted", "true");
+            preferences.SetAttribute("is_accepted", "false");
             preferences.SetAttribute("name", "Online User Agreement");
             if (File.Exists("EULA.txt"))
             {
@@ -159,8 +159,11 @@ namespace ModNationServer
                 , new SQLiteParameter("@platform", tryGetParameter(url, "platform")));
             int totalCreations = sqReader.GetInt32(0);
             sqReader.Close();
-            //TODO: Column sort
-            sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT * FROM Player_Creations WHERE player_id=@player_id AND player_creation_type=@player_creation_type AND platform=@platform AND deleted='false' LIMIT @per_page OFFSET @page_skip;"
+            string sort_column = DatabaseManager.SanitizeString(tryGetParameter(url, "sort_column"));
+            if (sort_column != "") { sort_column = "ORDER BY " + sort_column + " "; }
+            string sort_order = DatabaseManager.SanitizeString(tryGetParameter(url, "sort_order"));
+            if (sort_order != "") { sort_order = sort_order + " "; }
+            sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT * FROM Player_Creations WHERE player_id=@player_id AND player_creation_type=@player_creation_type AND platform=@platform AND deleted='false' " + sort_column + sort_order + "LIMIT @per_page OFFSET @page_skip;"
                 , new SQLiteParameter("@player_id", SessionManager.players[SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value)].player_id.ToString())
                 , new SQLiteParameter("@page_skip", (int.Parse(url["per_page"]) * (int.Parse(url["page"]) - 1)).ToString())
                 , new SQLiteParameter("@per_page", tryGetParameter(url, "per_page"))
@@ -241,6 +244,7 @@ namespace ModNationServer
                 playercreation.SetAttribute("id", DatabaseManager.GetValue(sqReader, "id").ToString());
                 playercreation.SetAttribute("name", DatabaseManager.GetValue(sqReader, "name").ToString());
                 playercreation.SetAttribute("description", DatabaseManager.GetValue(sqReader, "description").ToString());
+                playercreation.SetAttribute("player_id", DatabaseManager.GetValue(sqReader, "player_id").ToString());
                 playercreation.SetAttribute("moderation_status", "APPROVED");
                 playercreation.SetAttribute("created_at", ((DateTime)DatabaseManager.GetValue(sqReader, "created_at")).ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
                 playercreation.SetAttribute("updated_at", ((DateTime)DatabaseManager.GetValue(sqReader, "updated_at")).ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
@@ -251,6 +255,7 @@ namespace ModNationServer
                 playercreation.SetAttribute("views", DatabaseManager.GetValue(sqReader, "views").ToString());
                 playercreation.SetAttribute("player_creation_type", DatabaseManager.GetValue(sqReader, "player_creation_type").ToString());
                 playercreation.SetAttribute("races_started", DatabaseManager.GetValue(sqReader, "races_started").ToString());
+                playercreation.SetAttribute("is_remixable", DatabaseManager.GetValue(sqReader, "is_remixable").ToString().ToLower());
                 creations.AppendChild(playercreation);
                 sqReader.Read();
                 count++;
@@ -277,6 +282,7 @@ namespace ModNationServer
                 sqReader.Close();
                 element.SetAttribute("star_rating", (rating / count).ToString());
                 element.SetAttribute("rating", (rating / count).ToString());
+                element.SetAttribute("username", GetUserNameFromID(element.Attributes["player_id"].InnerText, sqlite_cmd));
             }
 
             res.AppendChild(creations);
@@ -323,6 +329,7 @@ namespace ModNationServer
                 playercreation.SetAttribute("id", DatabaseManager.GetValue(sqReader, "id").ToString());
                 playercreation.SetAttribute("name", DatabaseManager.GetValue(sqReader, "name").ToString());
                 playercreation.SetAttribute("description", DatabaseManager.GetValue(sqReader, "description").ToString());
+                playercreation.SetAttribute("player_id", DatabaseManager.GetValue(sqReader, "player_id").ToString());
                 playercreation.SetAttribute("moderation_status", "APPROVED");
                 playercreation.SetAttribute("created_at", ((DateTime)DatabaseManager.GetValue(sqReader, "created_at")).ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
                 playercreation.SetAttribute("updated_at", ((DateTime)DatabaseManager.GetValue(sqReader, "updated_at")).ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
@@ -333,6 +340,7 @@ namespace ModNationServer
                 playercreation.SetAttribute("views", DatabaseManager.GetValue(sqReader, "views").ToString());
                 playercreation.SetAttribute("player_creation_type", DatabaseManager.GetValue(sqReader, "player_creation_type").ToString());
                 playercreation.SetAttribute("races_started", DatabaseManager.GetValue(sqReader, "races_started").ToString());
+                playercreation.SetAttribute("is_remixable", DatabaseManager.GetValue(sqReader, "is_remixable").ToString().ToLower());
                 creations.AppendChild(playercreation);
                 sqReader.Read();
                 count++;
@@ -359,6 +367,7 @@ namespace ModNationServer
                 sqReader.Close();
                 element.SetAttribute("star_rating", (rating / count).ToString());
                 element.SetAttribute("rating", (rating / count).ToString());
+                element.SetAttribute("username", GetUserNameFromID(element.Attributes["player_id"].InnerText, sqlite_cmd));
             }
 
             res.AppendChild(creations);
@@ -402,6 +411,7 @@ namespace ModNationServer
                 playercreation.SetAttribute("id", DatabaseManager.GetValue(sqReader, "id").ToString());
                 playercreation.SetAttribute("name", DatabaseManager.GetValue(sqReader, "name").ToString());
                 playercreation.SetAttribute("description", DatabaseManager.GetValue(sqReader, "description").ToString());
+                playercreation.SetAttribute("player_id", DatabaseManager.GetValue(sqReader, "player_id").ToString());
                 playercreation.SetAttribute("moderation_status", "APPROVED");
                 playercreation.SetAttribute("created_at", ((DateTime)DatabaseManager.GetValue(sqReader, "created_at")).ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
                 playercreation.SetAttribute("updated_at", ((DateTime)DatabaseManager.GetValue(sqReader, "updated_at")).ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
@@ -412,6 +422,7 @@ namespace ModNationServer
                 playercreation.SetAttribute("views", DatabaseManager.GetValue(sqReader, "views").ToString());
                 playercreation.SetAttribute("player_creation_type", DatabaseManager.GetValue(sqReader, "player_creation_type").ToString());
                 playercreation.SetAttribute("races_started", DatabaseManager.GetValue(sqReader, "races_started").ToString());
+                playercreation.SetAttribute("is_remixable", DatabaseManager.GetValue(sqReader, "is_remixable").ToString().ToLower());
                 creations.AppendChild(playercreation);
                 sqReader.Read();
                 count++;
@@ -438,6 +449,7 @@ namespace ModNationServer
                 sqReader.Close();
                 element.SetAttribute("star_rating", (rating / count).ToString());
                 element.SetAttribute("rating", (rating / count).ToString());
+                element.SetAttribute("username", GetUserNameFromID(element.Attributes["player_id"].InnerText, sqlite_cmd));
             }
 
             res.AppendChild(creations);
@@ -636,7 +648,7 @@ namespace ModNationServer
             sqReader.Close();
             foreach (XmlElement element in creations)
             {
-                element.SetAttribute("username", GetUserNameFromID(playerid.ToString(), sqlite_cmd));
+                element.SetAttribute("username", GetUserNameFromID(element.Attributes["player_id"].InnerText, sqlite_cmd));
             }
             res.AppendChild(creations);
             resDoc.ChildNodes[0].AppendChild(res);
@@ -663,10 +675,15 @@ namespace ModNationServer
         {
             XmlElement res = resDoc.CreateElement("response");
             XmlElement creations = resDoc.CreateElement("player_creations");
-            //TODO
-            creations.SetAttribute("total", "0");
-            creations.InnerText = "\n";
-            //TODO: Get creations
+            string[] ids = url["id"].Split(',');
+            creations.SetAttribute("total", ids.Length.ToString());
+            foreach (string id in ids)
+            {
+                XmlElement creation = resDoc.CreateElement("player_creation");
+                creation.SetAttribute("id", id);
+                creation.SetAttribute("suggested_action", "allow");
+                creations.AppendChild(creation);
+            }
             res.AppendChild(creations);
             resDoc.ChildNodes[0].AppendChild(res);
             return true;
@@ -729,7 +746,7 @@ namespace ModNationServer
             File.WriteAllBytes("player_creations\\" + id.ToString() + "\\" + url.Files[1].FileName + "_image.png", fileBuffer);
             new Bitmap(Image.FromStream(new MemoryStream(fileBuffer)), 128, 128).Save("player_creations\\" + id.ToString() + "\\" + url.Files[1].FileName + "_image_128x128.png", ImageFormat.Png);
             XmlElement res = resDoc.CreateElement("response");
-            XmlElement creations = resDoc.CreateElement("player_creations");
+            XmlElement creations = resDoc.CreateElement("player_creation");
             string sqlcommand = "UPDATE Users SET total_player_creations=total_player_creations+1, ";
             switch (url.GetParameterValue("player_creation[player_creation_type]"))
             {
@@ -746,7 +763,7 @@ namespace ModNationServer
                     return true;
             }
             sqlcommand += "+1 WHERE player_id=@player_id;";
-            DatabaseManager.NonQuery(sqlite_cmd, sqlcommand, new SQLiteParameter("@player_id", SessionManager.playerTickets[SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value)].user_id));
+            DatabaseManager.NonQuery(sqlite_cmd, sqlcommand, new SQLiteParameter("@player_id", SessionManager.players[SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value)].player_id));
             creations.SetAttribute("id", id.ToString());
             res.AppendChild(creations);
             resDoc.ChildNodes[0].AppendChild(res);
@@ -1072,8 +1089,8 @@ namespace ModNationServer
             while (sqReader.HasRows)
             {
                 XmlElement favplayer = resDoc.CreateElement("favorite_player");
-                favplayer.SetAttribute("favorite_player_id", (count + 1).ToString());
-                favplayer.SetAttribute("id", DatabaseManager.GetValue(sqReader, "favorite_player_id").ToString());
+                favplayer.SetAttribute("favorite_player_id", DatabaseManager.GetValue(sqReader, "favorite_player_id").ToString());
+                favplayer.SetAttribute("id", (count + 1).ToString());
                 favplayers.AppendChild(favplayer);
                 sqReader.Read();
                 count++;
@@ -1081,7 +1098,7 @@ namespace ModNationServer
             sqReader.Close();
             foreach (XmlElement element in favplayers.ChildNodes)
             {
-                element.SetAttribute("username", GetUserNameFromID(element.Attributes["id"].InnerText, sqlite_cmd).ToString());
+                element.SetAttribute("username", GetUserNameFromID(element.Attributes["favorite_player_id"].InnerText, sqlite_cmd).ToString());
             }
             favplayers.SetAttribute("total", count.ToString());
             res.AppendChild(favplayers);
