@@ -18,11 +18,13 @@ namespace ModNationServer
         int bReqIndex = 0;
         byte[] reqData;
         byte[] resData;
+        bool endianFlip;
 
-        public BinaryReader(byte[] request)
+        public BinaryReader(byte[] request, bool flipEndian = true)
         {
             reqData = request;
             resData = new byte[0];
+            endianFlip = flipEndian;
         }
 
         //Modifiers
@@ -244,6 +246,7 @@ namespace ModNationServer
         //Helpers
         public byte[] EndianFlip(byte[] data, int offset = 0, int length = -1)
         {
+            if (!endianFlip) { return data; }
             if (length < 0) { length = data.Length; }
             Array.Reverse(data, offset, length);
             return data;

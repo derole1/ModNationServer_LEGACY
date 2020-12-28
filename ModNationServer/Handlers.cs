@@ -37,7 +37,7 @@ namespace ModNationServer
             XmlElement preferences = resDoc.CreateElement("policy");
             preferences.SetAttribute("id", "1");
             //TODO: Implement read from user profile
-            preferences.SetAttribute("is_accepted", "false");
+            preferences.SetAttribute("is_accepted", Program.config["hide_eula"]);
             preferences.SetAttribute("name", "Online User Agreement");
             if (File.Exists("EULA.txt"))
             {
@@ -60,7 +60,7 @@ namespace ModNationServer
         {
             string sessionID = SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value);
             response.SetCookie(new Cookie("playerconnect_session_id", SessionManager.AppendExtendSessionID(request.Cookies["playerconnect_session_id"].Value)));
-            bool respond = SessionManager.CreateSession(sessionID, url["ticket"], sqlite_cmd);
+            bool respond = SessionManager.CreateSession(sessionID, url["ticket"], request.RemoteEndPoint.Address.ToString(), sqlite_cmd);
             XmlElement res = resDoc.CreateElement("response");
             XmlElement logindata = resDoc.CreateElement("login_data");
             logindata.SetAttribute("player_id", SessionManager.players[sessionID].player_id.ToString());
@@ -75,16 +75,19 @@ namespace ModNationServer
             return respond;
         }
 
-        //TODO: Add these to a config file
         static string[] contentTypes = new string[] { "player_avatars", "player_creations", "content_updates", "ghost_car_data" };
         static string[] contentFormats = new string[] { ".png", "data.bin, preview_image.png", "data.bin", "data.bin" };
-        static string[] contentUrls = new string[] { "http://" + Program.ip + ":" + Program.port.ToString() + "/player_avatars/"
-            , "http://" + Program.ip + ":" + Program.port.ToString() + "/player_creations/"
-            , "http://" + Program.ip + ":" + Program.port.ToString() + "/content_updates/"
-            , "http://" + Program.ip + ":" + Program.port.ToString() + "/ghost_car_data/" };
+        //static string[] contentUrls = new string[] { "http://" + Program.ip + ":" + Program.port.ToString() + "/player_avatars/"
+        //    , "http://" + Program.ip + ":" + Program.port.ToString() + "/player_creations/"
+        //    , "http://" + Program.ip + ":" + Program.port.ToString() + "/content_updates/"
+        //    , "http://" + Program.ip + ":" + Program.port.ToString() + "/ghost_car_data/" };
 
         public static bool ContentUrlListHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc)
         {
+            string[] contentUrls = new string[] { Program.config["avatar_url"]
+            , Program.config["creation_url"]
+            , Program.config["content_update_url"]
+            , Program.config["ghost_car_data_url"] };
             XmlElement res = resDoc.CreateElement("response");
             XmlElement curls = resDoc.CreateElement("content_urls");
             curls.SetAttribute("total", contentTypes.Length.ToString());
@@ -380,11 +383,6 @@ namespace ModNationServer
             XmlElement res = resDoc.CreateElement("response");
             XmlElement creations = resDoc.CreateElement("player_creations");
             //If theres a better way to do this let me know
-            SQLiteDataReader sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creations WHERE player_creation_type=@player_creation_type AND platform=@platform AND deleted='false';"
-                , new SQLiteParameter("@player_creation_type", tryGetParameter(url, "player_creation_type"))
-                , new SQLiteParameter("@platform", tryGetParameter(url, "platform")));
-            int totalCreations = sqReader.GetInt32(0);
-            sqReader.Close();
             string search = DatabaseManager.SanitizeString(tryGetParameter(url, "search"));
             if (search != "") { search = "AND name LIKE '%" + search + "%' "; }
             string tags = DatabaseManager.SanitizeString(tryGetParameter(url, "search_tags"));
@@ -399,6 +397,11 @@ namespace ModNationServer
                     username += "AND player_id=" + GetIDFromUserName(name, sqlite_cmd) + " ";
                 }
             }
+            SQLiteDataReader sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT COUNT(*) FROM Player_Creations WHERE player_creation_type=@player_creation_type AND platform=@platform AND deleted='false' " + search + tags + username + ";"
+                , new SQLiteParameter("@player_creation_type", tryGetParameter(url, "player_creation_type"))
+                , new SQLiteParameter("@platform", tryGetParameter(url, "platform")));
+            int totalCreations = sqReader.GetInt32(0);
+            sqReader.Close();
             sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT * FROM Player_Creations WHERE player_creation_type=@player_creation_type AND platform=@platform AND deleted='false' " + search + tags + username + "LIMIT @per_page OFFSET @page_skip;"
                 , new SQLiteParameter("@page_skip", (int.Parse(url["per_page"]) * (int.Parse(url["page"]) - 1)).ToString())
                 , new SQLiteParameter("@per_page", tryGetParameter(url, "per_page"))
@@ -475,7 +478,7 @@ namespace ModNationServer
                 playercreation.SetAttribute("name", DatabaseManager.GetValue(sqReader, "name").ToString());
                 playercreation.SetAttribute("description", DatabaseManager.GetValue(sqReader, "description").ToString());
                 playercreation.SetAttribute("moderation_status", "APPROVED");    //TODO
-                playercreation.SetAttribute("moderation_status_id", "1");    //TODO
+                playercreation.SetAttribute("moderation_status_id", "1202");    //TODO
                 playercreation.SetAttribute("created_at", ((DateTime)DatabaseManager.GetValue(sqReader, "created_at")).ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
                 playercreation.SetAttribute("updated_at", ((DateTime)DatabaseManager.GetValue(sqReader, "updated_at")).ToString("yyyy-MM-ddTHH:mm:ss+00:00"));
                 playercreation.SetAttribute("downloads", DatabaseManager.GetValue(sqReader, "downloads").ToString());
@@ -539,7 +542,6 @@ namespace ModNationServer
         public static bool PlayerCreationDownloadHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
         {
             XmlElement res = resDoc.CreateElement("response");
-            XmlElement creations = resDoc.CreateElement("player_creations");
             if (url["is_counted"] == "true")
             {
                 DatabaseManager.NonQuery(sqlite_cmd, "UPDATE Player_Creations SET downloads=downloads+1, downloads_this_week=downloads_this_week+1 WHERE id=@id;"
@@ -575,17 +577,16 @@ namespace ModNationServer
                 byte[] previewData = File.ReadAllBytes("player_creations\\" + url["id"] + "\\preview_image.png");
                 playercreation.SetAttribute("preview_md5", BitConverter.ToString(MD5.Create().ComputeHash(previewData)).Replace("-", "").ToLower());
                 playercreation.SetAttribute("preview_size", previewData.Length.ToString());
-                creations.AppendChild(playercreation);
+                res.AppendChild(playercreation);
             }
             sqReader.Close();
-            foreach (XmlElement element in creations)
+            foreach (XmlElement element in res)
             {
                 element.SetAttribute("username", GetUserNameFromID(element.Attributes["player_id"].InnerText, sqlite_cmd));
                 element.SetAttribute("original_player_username", GetUserNameFromID(element.Attributes["original_player_id"].InnerText, sqlite_cmd));
                 element.SetAttribute("parent_player_username", GetUserNameFromID(element.Attributes["parent_player_id"].InnerText, sqlite_cmd));
                 element.SetAttribute("parent_creation_name", GetCreationNameFromID(element.Attributes["parent_creation_id"].InnerText, sqlite_cmd));
             }
-            res.AppendChild(creations);
             resDoc.ChildNodes[0].AppendChild(res);
             return true;
         }
@@ -593,11 +594,20 @@ namespace ModNationServer
         public static bool PlayerCreationRatingViewHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
         {
             XmlElement res = resDoc.CreateElement("response");
-            XmlElement creations = resDoc.CreateElement("player_creation_ratings");
-            //TODO
-            //creations.SetAttribute("comments", "test");
-            //creations.SetAttribute("rating", "1.0");
-            //TODO: Get creation ratings
+            XmlElement creations = resDoc.CreateElement("player_creation_rating");
+            SQLiteDataReader sqReader = DatabaseManager.GetReader(sqlite_cmd, "SELECT * FROM Player_Creation_Ratings WHERE id=@id AND player_id=@player_id LIMIT 1;"
+                , new SQLiteParameter("@player_id", SessionManager.players[SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value)].player_id.ToString())
+                , new SQLiteParameter("@id", tryGetParameter(url, "player_creation_id")));
+            long playerId = 0;
+            if (sqReader.HasRows)
+            {
+                creations.SetAttribute("comments", DatabaseManager.GetValue(sqReader, "comments").ToString());
+                creations.SetAttribute("rating", DatabaseManager.GetValue(sqReader, "rating").ToString());
+                playerId = (long)DatabaseManager.GetValue(sqReader, "player_id");
+                creations.SetAttribute("player_id", playerId.ToString());
+            }
+            sqReader.Close();
+            creations.SetAttribute("username", GetUserNameFromID(playerId.ToString(), sqlite_cmd));
             res.AppendChild(creations);
             resDoc.ChildNodes[0].AppendChild(res);
             return true;
@@ -1128,7 +1138,20 @@ namespace ModNationServer
             return true;
         }
 
-        public static bool ServerSelectHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc)
+        public static bool PlayerAvatarUpdateHandler(HttpListenerRequest request, HttpListenerResponse response, MultipartFormDataParser url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
+        {
+            XmlElement res = resDoc.CreateElement("response");
+            //Update avatar
+            string playerId = SessionManager.players[SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value)].player_id.ToString();
+            if (!Directory.Exists("player_avatars\\" + playerId)) { Directory.CreateDirectory("player_avatars\\" + playerId); }
+            byte[] fileBuffer = new byte[url.Files[0].Data.Length];
+            url.Files[0].Data.Read(fileBuffer, 0, fileBuffer.Length);
+            File.WriteAllBytes("player_avatars\\" + playerId + "\\" + url.GetParameterValue("player_avatar[player_avatar_type]").ToLower() + ".png", fileBuffer);
+            resDoc.ChildNodes[0].AppendChild(res);
+            return true;
+        }
+
+        public static bool ServerSelectHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
         {
             XmlElement res = resDoc.CreateElement("response");
             XmlElement server = resDoc.CreateElement("server");
@@ -1136,14 +1159,16 @@ namespace ModNationServer
             //TODO: Calculate unique UUIDs and signature
             //TODO: What is "server_private_key"? Someone suggested it could be a NIST P-192 ECC private key
             //(But the SSL seems to work fine without it unless its response only)
+            string playerId = SessionManager.players[SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value)].player_id.ToString();
+            string uuid = DirectorySessionManager.RandomSessionUUID();
             server.SetAttribute("server_type", "DIRECTORY");
             server.SetAttribute("address", Program.ip);
             server.SetAttribute("port", Program.matchingPort.ToString());
-            server.SetAttribute("session_uuid", "00000000-0000-0000-0000-000000000000");
-            server.SetAttribute("server_private_key", "");
-            ticket.SetAttribute("session_uuid", "00000000-0000-0000-0000-000000000000");
-            ticket.SetAttribute("player_id", SessionManager.players[SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value)].player_id.ToString());
-            ticket.SetAttribute("username", "test");
+            server.SetAttribute("session_uuid", uuid);
+            server.SetAttribute("server_private_key", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+            ticket.SetAttribute("session_uuid", uuid);
+            ticket.SetAttribute("player_id", playerId);
+            ticket.SetAttribute("username", GetUserNameFromID(playerId, sqlite_cmd));
             ticket.SetAttribute("expiration_date", "Tue Oct 09 23:25:57 +0000 2035");
             ticket.SetAttribute("signature", "");
             server.AppendChild(ticket);

@@ -78,6 +78,7 @@
   <ItemGroup>
     <Compile Include="BinaryReader.cs" />
     <Compile Include="DatabaseManager.cs" />
+    <Compile Include="DirectorySessionManager.cs" />
     <Compile Include="Handlers.cs" />
     <Compile Include="MatchingHandlers.cs" />
     <Compile Include="Processors.cs" />

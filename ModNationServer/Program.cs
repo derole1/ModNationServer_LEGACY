@@ -29,12 +29,21 @@ namespace ModNationServer
          * - Database stuff barely works at all so needs to be properly implemented at some point
          */
 
+        public static Dictionary<string, string> config = new Dictionary<string, string>();
+
         public static string ip = "127.0.0.1";
         public static int port = 10050;
+        public static string matchingIp = "127.0.0.1";
         public static int matchingPort = 10501;
 
         static void Main(string[] args)
         {
+            ReadConfigFile("config.ini");
+            DatabaseManager.connectionString = "Data Source=" + config["database"] + ";Version=3;";
+            ip = config["ip"];
+            port = int.Parse(config["port"]);
+            matchingIp = config["directory_ip"];
+            matchingPort = int.Parse(config["directory_port"]);
             foreach (string arg in args)
             {
                 switch (arg)
@@ -50,16 +59,11 @@ namespace ModNationServer
             {
                 DatabaseManager.performDBUpgrade();
             }
-            //if (!Directory.Exists("creations"))
-            //{
-            //    Directory.CreateDirectory("creations");
-            //}
             //Set up server threads
-            //Thread ms = new Thread(() => MainServer("http://" + ip + ":" + port.ToString() + "/"));
             Thread ms = new Thread(() => MainServer("http://*:" + port.ToString() + "/"));
-            Thread ss = new Thread(() => SessionServer(IPAddress.Any, matchingPort, "output.pfx", "1234"));
+            Thread ds = new Thread(() => DirectoryServer(IPAddress.Any, matchingPort, config["directory_cert"], config["directory_cert_pass"]));
             ms.Start();
-            ss.Start();
+            ds.Start();
             //Start up statistic thread (To update downloads/views this/last week etc)
             Thread st = new Thread(() => StaticticThread());
             st.Start();
@@ -97,7 +101,7 @@ namespace ModNationServer
             }
         }
 
-        static void SessionServer(IPAddress ip, int port, string certPath, string certPass)
+        static void DirectoryServer(IPAddress ip, int port, string certPath, string certPass)
         {
             //Load the certificate to use
             X509Certificate2 serverCertificate = new X509Certificate2(certPath, certPass);
@@ -110,7 +114,7 @@ namespace ModNationServer
                 try {
                     //Get TCPClient and pass to a new thread
                     TcpClient client = listener.AcceptTcpClient();
-                    new Thread(() => Processors.SessionServerProcessor(client, serverCertificate)).Start();
+                    new Thread(() => Processors.DirectoryServerProcessor(client, serverCertificate)).Start();
                 } catch { }
             }
         }
@@ -145,6 +149,35 @@ namespace ModNationServer
                     sqlite_conn.Close();
                 }
                 lastCheckDay = DateTime.Now.DayOfWeek;
+            }
+        }
+
+        static void ReadConfigFile(string file)
+        {
+            if (!File.Exists(file))
+            {
+                File.WriteAllText(file, "#Config file for ModNation server\r\n"
+                    + "ip=127.0.0.1\r\n"
+                    + "port=10050\r\n"
+                    + "directory_ip=127.0.0.1\r\n"
+                    + "directory_port=10501\r\n"
+                    + "directory_cert=output.pfx\r\n"
+                    + "directory_cert_pass=1234\r\n"
+                    + "avatar_url=http://127.0.0.1:10050/player_avatars/\r\n"
+                    + "creation_url=http://127.0.0.1:10050/player_creations/\r\n"
+                    + "content_update_url=http://127.0.0.1:10050/content_updates/\r\n"
+                    + "ghost_car_data_url=http://127.0.0.1:10050/ghost_car_data/\r\n"
+                    + "database=database.sqlite\n"
+                    + "hide_eula=false");
+            }
+            string[] parameters = File.ReadAllLines(file);
+            foreach (string param in parameters)
+            {
+                if (param.Length > 0 && param[0] != '#')
+                {
+                    string[] paramSplit = param.Split('=');
+                    config.Add(paramSplit[0], paramSplit[1]);
+                }
             }
         }
     }

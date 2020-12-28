@@ -48,7 +48,7 @@ namespace ModNationServer
         public static Dictionary<string, SessionPlayer> players = new Dictionary<string, SessionPlayer>();
         public static Dictionary<string, NPTicket> playerTickets = new Dictionary<string, NPTicket>();
 
-        public static bool CreateSession(string sessionid, string psnticket, SQLiteCommand sqlite_cmd)
+        public static bool CreateSession(string sessionid, string psnticket, string ipAddr, SQLiteCommand sqlite_cmd)
         {
             //Decode PSN ticket data
             //sessionid = GetSessionID(sessionid);
@@ -78,9 +78,11 @@ namespace ModNationServer
                     , new SQLiteParameter("@state", ""));
             } else { id = sqReader.GetInt32(0); sqReader.Close(); }
             SessionPlayer player = new SessionPlayer();
+            player.ip_address = ipAddr;
             player.player_id = (ulong)id;
             player.username = ticket.online_id;
             player.presence = "ONLINE";
+            player.encoding = "US-ASCII";
             players.Add(sessionid, player);
             playerTickets.Add(sessionid, ticket);
             return true;

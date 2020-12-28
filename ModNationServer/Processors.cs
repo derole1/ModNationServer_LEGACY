@@ -23,327 +23,347 @@ namespace ModNationServer
 
         public static void MainServerProcessor(HttpListenerContext context)
         {
-            //Sets up various things for http request and response
-            HttpListenerRequest request = context.Request;
-            HttpListenerResponse response = context.Response;
-            System.IO.Stream input = request.InputStream;
-            System.IO.Stream output = response.OutputStream;
             try
             {
-                //Reads the http data
-                byte[] recvBuffer = new byte[request.ContentLength64];
-                if (request.ContentLength64 > 0)
+                //Sets up various things for http request and response
+                HttpListenerRequest request = context.Request;
+                HttpListenerResponse response = context.Response;
+                System.IO.Stream input = request.InputStream;
+                System.IO.Stream output = response.OutputStream;
+                try
                 {
-                    int recvBytes = 0;
-                    MemoryStream ms = new MemoryStream();
-                    do
+                    //Reads the http data
+                    byte[] recvBuffer = new byte[request.ContentLength64];
+                    if (request.ContentLength64 > 0)
                     {
-                        byte[] tempBuf = new byte[20000];
-                        int bytes = input.Read(tempBuf, 0, tempBuf.Length);
-                        ms.Write(tempBuf, 0, bytes);
-                        recvBytes += bytes;
-                    } while (recvBytes < request.ContentLength64);
-                    recvBuffer = ms.ToArray();
-                }
-                byte[] buffer = recvBuffer;
-                //Creates receiving and response xml documents
-                XmlDocument recDoc = new XmlDocument();
-                XmlDocument resDoc = new XmlDocument();
-                //Sets up response with proper values
-                XmlElement result = AppendCommon(resDoc);
-                resDoc.AppendChild(result);
-                //if (request.HttpMethod == "POST")
-                //{
-                //    recDoc.LoadXml(Encoding.UTF8.GetString(recvBuffer));
-                //}
-                Console.WriteLine("Request URL: {0}", request.RawUrl.Split('?')[0]);
-                Dictionary<string, string> urlEncodedData = new Dictionary<string, string>();
-                //Decode url encoding if urlencoded data is sent
-                if (request.ContentType == "application/x-www-form-urlencoded")
-                {
-                    DecodeURLEncoding(Encoding.UTF8.GetString(recvBuffer), urlEncodedData);
-                }
-                //Open a database connection (TODO: Put into DatabaseManager?)
-                SQLiteConnection sqlite_conn = new SQLiteConnection("Data Source=database.sqlite;Version=3;");
-                sqlite_conn.Open();
-                SQLiteCommand sqlite_cmd = sqlite_conn.CreateCommand();
-                bool respond = false;
-                bool isXml = true;
-                string[] url = request.RawUrl.Substring(1, request.RawUrl.Length - 1).Split('/');
-                //Decide if the server wants resources, player creations or wants to access database stuff
-                switch (url[0])
-                {
-                    case "resources":
-                        respond = true;
-                        isXml = false;
-                        if (File.Exists(string.Join("\\", url)))
+                        int recvBytes = 0;
+                        MemoryStream ms = new MemoryStream();
+                        do
                         {
-                            response.ContentType = "application/xml; charset=utf-8";
-                            buffer = xmlSchemas[string.Join("\\", url)];
-                        }
-                        break;
-                    case "player_avatars":
-                        //Console.WriteLine("AVATAR REQUEST!!!");
-                        respond = true;
-                        isXml = false;
-                        response.ContentType = "image/png";
-                        if (File.Exists("defaultavatar.png"))
-                        {
-                            buffer = File.ReadAllBytes("defaultavatar.png");
-                        }
-                        break;
-                    case "player_creations":
-                        //Console.WriteLine("CREATIION REQUEST!!!");
-                        respond = true;
-                        isXml = false;
-                        if (File.Exists(string.Join("\\", url)))
-                        {
-                            //Decide what the content is and set the mime type accordingly
-                            if (Path.GetExtension(string.Join("\\", url)) == ".png")
-                            {
-                                response.ContentType = "image/png";
-                            }
-                            else
-                            {
-                                response.ContentType = "application/octet-stream";
-                            }
-                            buffer = File.ReadAllBytes(string.Join("\\", url));
-                        }
-                        break;
-                    default:
-                        //This probably isnt needed, but was just put in for debugging purposes
-                        //response.AddHeader("X-Rack-Cache", "pass");
-                        response.AddHeader("X-Runtime", "7");
-                        //response.AddHeader("Last-Modified", "Thu, 31 Dec 2037 23:55:55 GMT");
-                        //response.AddHeader("Expires", "Thu, 31 Dec 2037 23:55:55 GMT");
-                        response.AddHeader("Cache-Control", "Cache-Control: private, max-age=0, must-revalidate");
-                        //response.SetCookie(new Cookie("playerconnect_session_id", request.Cookies["playerconnect_session_id"].Value));
-                        break;
-                }
-                if (isXml)
-                {
-                    //response.ContentType = "text/xml; charset=utf-8";
-                    //Game requires the "charset=utf-8" part to properly decode some xml responses
-                    response.ContentType = "application/xml; charset=utf-8";
-                    int paramStart = request.RawUrl.IndexOf('?') + 1;
-                    //BIG switch statement that decides what handler the data goes to
-                    switch (url[0].Split('?')[0])
+                            byte[] tempBuf = new byte[20000];
+                            int bytes = input.Read(tempBuf, 0, tempBuf.Length);
+                            ms.Write(tempBuf, 0, bytes);
+                            recvBytes += bytes;
+                        } while (recvBytes < request.ContentLength64);
+                        recvBuffer = ms.ToArray();
+                    }
+                    byte[] buffer = recvBuffer;
+                    //Creates receiving and response xml documents
+                    XmlDocument recDoc = new XmlDocument();
+                    XmlDocument resDoc = new XmlDocument();
+                    //Sets up response with proper values
+                    XmlElement result = AppendCommon(resDoc);
+                    resDoc.AppendChild(result);
+                    //if (request.HttpMethod == "POST")
+                    //{
+                    //    recDoc.LoadXml(Encoding.UTF8.GetString(recvBuffer));
+                    //}
+                    Console.WriteLine("Request URL: {0}", request.RawUrl.Split('?')[0]);
+                    Dictionary<string, string> urlEncodedData = new Dictionary<string, string>();
+                    //Decode url encoding if urlencoded data is sent
+                    if (request.ContentType == "application/x-www-form-urlencoded")
                     {
-                        case "preferences.xml":
-                            respond = Handlers.PreferencesUpdateHandler(request, response, urlEncodedData, resDoc);
+                        DecodeURLEncoding(Encoding.UTF8.GetString(recvBuffer), urlEncodedData);
+                    }
+                    //Open a database connection (TODO: Put into DatabaseManager?)
+                    SQLiteConnection sqlite_conn = new SQLiteConnection("Data Source=database.sqlite;Version=3;");
+                    sqlite_conn.Open();
+                    SQLiteCommand sqlite_cmd = sqlite_conn.CreateCommand();
+                    bool respond = false;
+                    bool isXml = true;
+                    string[] url = request.RawUrl.Substring(1, request.RawUrl.Length - 1).Split('/');
+                    //Test page
+                    if (!request.UserAgent.Contains("PlayerConnect"))
+                    {
+                        response.ContentType = "text/html";
+                        buffer = Encoding.ASCII.GetBytes("<h1>Your PS3 is connecting to ModNation!</h1>");
+                        response.ContentLength64 = buffer.Length;
+                        output.Write(buffer, 0, buffer.Length);
+                        output.Close();
+                        return;
+                    }
+                    //Decide if the server wants resources, player creations or wants to access database stuff
+                    switch (url[0])
+                    {
+                        case "resources":
+                            respond = true;
+                            isXml = false;
+                            if (File.Exists(string.Join("\\", url)))
+                            {
+                                response.ContentType = "application/xml; charset=utf-8";
+                                buffer = xmlSchemas[string.Join("\\", url)];
+                            }
                             break;
-                        case "policy.view.xml":
-                            string sessionID = SessionManager.RandomSessionID(0x20);
-                            response.SetCookie(new Cookie("playerconnect_session_id", SessionManager.EncodeInitialSessionID(sessionID)));
-                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                            respond = Handlers.PolicyViewHandler(request, response, urlEncodedData, resDoc);
+                        case "player_avatars":
+                            respond = true;
+                            isXml = false;
+                            response.ContentType = "image/png";
+                            if (File.Exists(string.Join("\\", url)))
+                            {
+                                buffer = File.ReadAllBytes(string.Join("\\", url));
+                            }
                             break;
-                        case "policy.accept.xml":
-                            respond = Handlers.PolicyAcceptHandler(request, response, urlEncodedData, resDoc);
-                            break;
-                        case "session.login_np.xml":
-                            response.SetCookie(new Cookie("path", "/"));
-                            respond = Handlers.SessionLoginHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                            break;
-                        case "session.ping.xml":
-                            respond = Handlers.SessionPingHandler(request, response, urlEncodedData, resDoc);
-                            break;
-                        case "profanity_filter.list.xml":
-                            respond = Handlers.ProfanityFilterListHandler(request, response, urlEncodedData, resDoc);
+                        case "player_creations":
+                            respond = true;
+                            isXml = false;
+                            if (File.Exists(string.Join("\\", url)))
+                            {
+                                //Decide what the content is and set the mime type accordingly
+                                if (Path.GetExtension(string.Join("\\", url)) == ".png") { response.ContentType = "image/png"; }
+                                else { response.ContentType = "application/octet-stream"; }
+                                buffer = File.ReadAllBytes(string.Join("\\", url));
+                            }
                             break;
                         default:
-                            //Check if session exists for requests that require auth
-                            if (SessionManager.PingSession(request.Cookies["playerconnect_session_id"].Value))
-                            {
-                                Console.WriteLine("SESSION ID: {0}", SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value));
-                                switch (url[0].Split('?')[0])
-                                {
-                                    case "session.set_presence.xml":
-                                        respond = Handlers.SessionSetPresenceHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "content_url.list.xml":
-                                        respond = Handlers.ContentUrlListHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "skill_level.list.xml":
-                                        respond = Handlers.SkillLevelListHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "player_creation.mine.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.PlayerCreationMineHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_creation.show.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.PlayerCreationShowHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_creation.download.xml":
-                                        respond = Handlers.PlayerCreationDownloadHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_creation.list.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.PlayerCreationListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_creation.search.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.PlayerCreationSearchHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_creation.verify.xml":
-                                        respond = Handlers.PlayerCreationVerifyHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "player_creation.create.xml":
-                                        respond = Handlers.PlayerCreationCreateHandler(request, response, MultipartFormDataParser.Parse(new MemoryStream(recvBuffer)), resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_creation.destroy.xml":
-                                        respond = Handlers.PlayerCreationDestroyHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_creation.friends_view.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.PlayerCreationFriendsViewHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_creation_complaint.create.xml":
-                                        respond = Handlers.PlayerCreationComplaintCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_creation_rating.view.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.PlayerCreationRatingViewHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_creation_rating.create.xml":
-                                        respond = Handlers.PlayerCreationRatingCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_creation_rating.list.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.PlayerCreationRatingListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player.to_id.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.PlayerToIdHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "mail_message.create.xml":
-                                        respond = Handlers.MailMessageCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "tag.list.xml":
-                                        respond = Handlers.TagListHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "player_metric.show.xml":
-                                        respond = Handlers.PlayerMetricShowHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "player_metric.update.xml":
-                                        respond = Handlers.PlayerMetricUpdateHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "player_avatar.update.xml":
-                                        File.WriteAllText("Avatarcalled.txt", "test");
-                                        break;
-                                    case "mail_message.list.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.MailMessageListHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "achievement.list.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.AchievementListHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "content_update.latest.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.ContentUpdateLatestHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "leaderboard.view.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.LeaderboardViewHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "leaderboard.player_stats.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.LeaderboardPlayerStatsHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    case "announcement.list.xml":
-                                        respond = Handlers.AnnouncementListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player.info.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.PlayerInfoHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_rating.create.xml":
-                                        respond = Handlers.PlayerRatingCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_complaint.create.xml":
-                                        respond = Handlers.PlayerComplaintCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "favorite_player.create.xml":
-                                        respond = Handlers.FavoritePlayerCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "favorite_player.list.xml":
-                                        DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                        respond = Handlers.FavoritePlayerListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "favorite_player.remove.xml":
-                                        respond = Handlers.FavoritePlayerRemoveHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "player_profile.update.xml":
-                                        respond = Handlers.PlayerProfileUpdateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
-                                        break;
-                                    case "server.select.xml":
-                                        respond = Handlers.ServerSelectHandler(request, response, urlEncodedData, resDoc);
-                                        break;
-                                    default:
-                                        respond = Handlers.DefaultHandler(request, response, urlEncodedData, resDoc);
-                                        Console.WriteLine("Unimplemented request!");
-                                        break;
-                                }
-                            }
-                            else
-                            {
-                                respond = true;
-                                resDoc.ChildNodes[0].ChildNodes[0].ChildNodes[0].InnerText = "-105";
-                                resDoc.ChildNodes[0].ChildNodes[0].ChildNodes[1].InnerText = "NP Auth Failed: ticket is expired";
-                            }
+                            //This probably isnt needed, but was just put in for debugging purposes
+                            //response.AddHeader("X-Rack-Cache", "pass");
+                            //response.AddHeader("X-Runtime", "7");
+                            //response.AddHeader("Last-Modified", "Thu, 31 Dec 2037 23:55:55 GMT");
+                            //response.AddHeader("Expires", "Thu, 31 Dec 2037 23:55:55 GMT");
+                            //response.AddHeader("Cache-Control", "private, max-age=0, must-revalidate");
+                            //response.SetCookie(new Cookie("playerconnect_session_id", request.Cookies["playerconnect_session_id"].Value));
                             break;
                     }
-                }
-                sqlite_conn.Close();
-                //Determine if we need to respond and if the data is xml
-                if (respond)
-                {
                     if (isXml)
                     {
-                        //Console.WriteLine("Response XML: {0}", resDoc.InnerXml);
-                        buffer = Encoding.UTF8.GetBytes(resDoc.InnerXml);
+                        //response.ContentType = "text/xml; charset=utf-8";
+                        //Game requires the "charset=utf-8" part to properly decode some xml responses
+                        response.ContentType = "application/xml; charset=utf-8";
+                        int paramStart = request.RawUrl.IndexOf('?') + 1;
+                        //BIG switch statement that decides what handler the data goes to
+                        switch (url[0].Split('?')[0])
+                        {
+                            case "preferences.xml":
+                                respond = Handlers.PreferencesUpdateHandler(request, response, urlEncodedData, resDoc);
+                                break;
+                            case "policy.view.xml":
+                                string sessionID = SessionManager.RandomSessionID(0x20);
+                                response.SetCookie(new Cookie("playerconnect_session_id", SessionManager.EncodeInitialSessionID(sessionID)));
+                                DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                respond = Handlers.PolicyViewHandler(request, response, urlEncodedData, resDoc);
+                                break;
+                            case "policy.accept.xml":
+                                respond = Handlers.PolicyAcceptHandler(request, response, urlEncodedData, resDoc);
+                                break;
+                            case "session.login_np.xml":
+                                respond = Handlers.SessionLoginHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                break;
+                            case "session.ping.xml":
+                                respond = Handlers.SessionPingHandler(request, response, urlEncodedData, resDoc);
+                                break;
+                            case "profanity_filter.list.xml":
+                                respond = Handlers.ProfanityFilterListHandler(request, response, urlEncodedData, resDoc);
+                                break;
+                            default:
+                                //Check if session exists for requests that require auth
+                                if (SessionManager.PingSession(request.Cookies["playerconnect_session_id"].Value))
+                                {
+                                    Console.WriteLine("SESSION ID: {0}", SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value));
+                                    response.SetCookie(new Cookie("playerconnect_session_id", request.Cookies["playerconnect_session_id"].Value));
+                                    response.SetCookie(new Cookie("path", "/"));
+                                    switch (url[0].Split('?')[0])
+                                    {
+                                        case "session.set_presence.xml":
+                                            respond = Handlers.SessionSetPresenceHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "content_url.list.xml":
+                                            respond = Handlers.ContentUrlListHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "skill_level.list.xml":
+                                            respond = Handlers.SkillLevelListHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "player_creation.mine.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.PlayerCreationMineHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_creation.show.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.PlayerCreationShowHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_creation.download.xml":
+                                            respond = Handlers.PlayerCreationDownloadHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_creation.list.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.PlayerCreationListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_creation.search.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.PlayerCreationSearchHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_creation.verify.xml":
+                                            respond = Handlers.PlayerCreationVerifyHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "player_creation.create.xml":
+                                            respond = Handlers.PlayerCreationCreateHandler(request, response, MultipartFormDataParser.Parse(new MemoryStream(recvBuffer)), resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_creation.destroy.xml":
+                                            respond = Handlers.PlayerCreationDestroyHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_creation.friends_view.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.PlayerCreationFriendsViewHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_creation_complaint.create.xml":
+                                            respond = Handlers.PlayerCreationComplaintCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_creation_rating.view.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.PlayerCreationRatingViewHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_creation_rating.create.xml":
+                                            respond = Handlers.PlayerCreationRatingCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_creation_rating.list.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.PlayerCreationRatingListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player.to_id.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.PlayerToIdHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "mail_message.create.xml":
+                                            respond = Handlers.MailMessageCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "tag.list.xml":
+                                            respond = Handlers.TagListHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "player_metric.show.xml":
+                                            respond = Handlers.PlayerMetricShowHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "player_metric.update.xml":
+                                            respond = Handlers.PlayerMetricUpdateHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "mail_message.list.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.MailMessageListHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "achievement.list.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.AchievementListHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "content_update.latest.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.ContentUpdateLatestHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "leaderboard.view.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.LeaderboardViewHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "leaderboard.player_stats.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.LeaderboardPlayerStatsHandler(request, response, urlEncodedData, resDoc);
+                                            break;
+                                        case "announcement.list.xml":
+                                            respond = Handlers.AnnouncementListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player.info.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.PlayerInfoHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_rating.create.xml":
+                                            respond = Handlers.PlayerRatingCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_complaint.create.xml":
+                                            respond = Handlers.PlayerComplaintCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "favorite_player.create.xml":
+                                            respond = Handlers.FavoritePlayerCreateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "favorite_player.list.xml":
+                                            DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
+                                            respond = Handlers.FavoritePlayerListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "favorite_player.remove.xml":
+                                            respond = Handlers.FavoritePlayerRemoveHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_profile.update.xml":
+                                            respond = Handlers.PlayerProfileUpdateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        case "player_avatar.update.xml":
+                                            respond = Handlers.PlayerAvatarUpdateHandler(request, response, MultipartFormDataParser.Parse(new MemoryStream(recvBuffer)), resDoc, sqlite_cmd);
+                                            break;
+                                        case "server.select.xml":
+                                            respond = Handlers.ServerSelectHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
+                                        default:
+                                            respond = Handlers.DefaultHandler(request, response, urlEncodedData, resDoc);
+                                            Console.WriteLine("Unimplemented request!");
+                                            break;
+                                    }
+                                }
+                                else
+                                {
+                                    respond = true;
+                                    resDoc.ChildNodes[0].ChildNodes[0].ChildNodes[0].InnerText = "-105";
+                                    resDoc.ChildNodes[0].ChildNodes[0].ChildNodes[1].InnerText = "NP Auth Failed: ticket is expired";
+                                }
+                                break;
+                        }
                     }
-                    //Calculate an S3 ETag (Required for image previews), its just an MD5 hash
-                    response.AddHeader("ETag", "\"" + BitConverter.ToString(MD5.Create().ComputeHash(buffer)).Replace("-", "").ToLower() + "\"");
-                    response.KeepAlive = false;
-                    response.ContentLength64 = buffer.Length;
-                    output.Write(buffer, 0, buffer.Length);
+                    sqlite_conn.Close();
+                    //Determine if we need to respond and if the data is xml
+                    if (respond)
+                    {
+                        if (isXml)
+                        {
+                            //Console.WriteLine("Response XML: {0}", resDoc.InnerXml);
+                            buffer = Encoding.UTF8.GetBytes(resDoc.InnerXml);
+                        }
+                        //Calculate an S3 ETag (Required for image previews), its just an MD5 hash
+                        response.AddHeader("ETag", "\"" + BitConverter.ToString(MD5.Create().ComputeHash(buffer)).Replace("-", "").ToLower() + "\"");
+                        response.KeepAlive = false;
+                        response.ContentLength64 = buffer.Length;
+                        output.Write(buffer, 0, buffer.Length);
+                    }
                 }
-             } catch (Exception e) { try { File.AppendAllText("error.log", e.ToString() + "\n\n"); } catch { } }
-             output.Close();
+                catch (Exception e) { try { File.AppendAllText("error.log", e.ToString() + "\n\n"); } catch { } }
+                output.Close();
+            } catch { }
         }
 
-        public static void SessionServerProcessor(TcpClient client, X509Certificate2 cert)
+        public static void DirectoryServerProcessor(TcpClient client, X509Certificate2 cert)
         {
-            //Here we process the client and send the data to the proper handler
-            NetworkStream stream = client.GetStream();
-            SslStream ssl = new SslStream(stream, false);
-            ssl.AuthenticateAsServer(cert, false, System.Security.Authentication.SslProtocols.Default, false);
-            Console.WriteLine("New client authenticated");
-            //Drop the connection for now as we dont know response format
-            ssl.Close();
-            client.Close();
-            return;
-            byte[] responseBuffer = new byte[255];
-            while (true)
+            try
             {
-                XmlDocument recDoc = GetXmlDoc(ReadData(ssl));
-                XmlDocument resDoc = InitResXml(recDoc);
-                switch (recDoc.GetElementsByTagName("method")[0].InnerText.Split(' ')[1])
+                //Here we process the client and send the data to the proper handler
+                NetworkStream stream = client.GetStream();
+                SslStream ssl = new SslStream(stream, false);
+                ssl.AuthenticateAsServer(cert, false, System.Security.Authentication.SslProtocols.Default, false);
+                Console.WriteLine("New client authenticated");
+                byte[] responseBuffer = new byte[255];
+                while (client.Connected)
                 {
-                    case "startConnect":
-                        MatchingHandlers.StartConnectHandler(recDoc, resDoc);
-                        break;
-                    default:
-                        MatchingHandlers.DefaultHandler(recDoc, resDoc);
-                        break;
+                    XmlDocument recDoc = GetXmlDoc(ReadData(ssl));
+                    //Drop the connection for now as we dont know response format
+                    //ssl.Close();
+                    //client.Close();
+                    //return;
+                    XmlDocument resDoc = InitResXml(recDoc);
+                    switch (recDoc.GetElementsByTagName("method")[0].InnerText.Split(' ')[1])
+                    {
+                        case "startConnect":
+                            MatchingHandlers.StartConnectHandler(recDoc, resDoc);
+                            break;
+                        case "timeSyncRequest":
+                            MatchingHandlers.TimeSyncRequestHandler(recDoc, resDoc);
+                            break;
+                        case "getServiceList":
+                            //ssl.Close();
+                            //client.Close();
+                            //return;
+                            MatchingHandlers.GetServiceListHandler(recDoc, resDoc);
+                            break;
+                        default:
+                            MatchingHandlers.DefaultHandler(recDoc, resDoc);
+                            break;
+                    }
+                    Console.WriteLine("Lobbying server response: {0}", resDoc.InnerXml);
+                    WriteData(ssl, resDoc);
                 }
-                //Console.WriteLine("Lobbying server response: {0}", resDoc.InnerXml);
-                WriteData(ssl, resDoc);
-            }
-            ssl.Close();
+                ssl.Close();
+            } catch { }
+            Console.WriteLine("Client disconnected");
             client.Close();
         }
 
@@ -372,7 +392,7 @@ namespace ModNationServer
             BinaryReader br = new BinaryReader(new byte[0]);
             br.pushInt32(data.Length + 20);  //Length of xml data
             br.pushArray(new byte[16]); //Padding
-            br.pushUInt32(0xFFFFFE64);  //??? (Checksum maybe, taken from request)
+            br.pushUInt32(0x64FEFFFF);  //??? (Checksum maybe, taken from request)
             byte[] buffer = br.getRes();
             buffer = buffer.Concat(data.ToArray()).ToArray();
             int bytesRead = 0;
@@ -391,7 +411,7 @@ namespace ModNationServer
             //Decodes xml data from lobby server
             XmlDocument doc = new XmlDocument();
             doc.LoadXml(Encoding.UTF8.GetString(data, 24, data.Length - 24));
-            //Console.WriteLine("Lobbying server request: {0}", doc.InnerXml);
+            Console.WriteLine("Lobbying server request: {0}", doc.InnerXml);
             return doc;
         }
 
@@ -401,7 +421,7 @@ namespace ModNationServer
             //Outside of TRANSACTION_TYPE_REPLY this might ALL be wrong
             XmlDocument doc = new XmlDocument();
             XmlElement service = doc.CreateElement("service");
-            service.SetAttribute("name", "directory");    //Dont know what to set this to as of now
+            service.SetAttribute("name", recDoc.ChildNodes[0].Attributes["name"].InnerText);
             XmlElement transaction = doc.CreateElement("transaction");
             transaction.SetAttribute("id", recDoc.ChildNodes[0].ChildNodes[0].Attributes["id"].InnerText);
             transaction.SetAttribute("type", "TRANSACTION_TYPE_REPLY");
