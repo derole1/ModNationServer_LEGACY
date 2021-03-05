@@ -6,14 +6,14 @@ IMPORTANT: You will also need to enable RC4 cypher suite support on your server 
 
 Currently implemented:
 - All sharestation features apart from search (but its very messy and needs a lot of clean up)
-- SSL server can accept and respond (however need to figure out the xml responses the game wants to properly get the game online in modspot)
+- SSL server can send list of services to game and game attempts connection, need to emulate the services.
 - Messaging system (by working I mean it dumps the message into the database and thats about it)
 
 To implement:
-- Fix stupid bug with sharestation where it complains about "playerconnect disconnect" when selecting download even though it doesnt request anything?
-- Directory server responses
-- Figure out what the Bombd server does (not quite up to the stage where it requests for it yet)
-- Properly implement messaging, profiles, friend lists, achievements
+~~- Fix stupid bug with sharestation where it complains about "playerconnect disconnect" when selecting download even though it doesnt request anything?~~
+~~- Directory server responses~~
+~~- Figure out what the Bombd server does (not quite up to the stage where it requests for it yet)~~
+- Properly implement messaging, profiles, friend lists, achievements (Partially done)
 - Link stuff to SQL database properly
 - Clean up messy code (theres a lot)
 - Also possibly switch to something like mySQL to improve database performance
