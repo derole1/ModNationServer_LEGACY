@@ -10,9 +10,9 @@ Currently implemented:
 - Messaging system (by working I mean it dumps the message into the database and thats about it)
 
 To implement:
-~~- Fix stupid bug with sharestation where it complains about "playerconnect disconnect" when selecting download even though it doesnt request anything?~~
-~~- Directory server responses~~
-~~- Figure out what the Bombd server does (not quite up to the stage where it requests for it yet)~~
+- ~~Fix stupid bug with sharestation where it complains about "playerconnect disconnect" when selecting download even though it doesnt request anything?~~
+- ~~Directory server responses~~
+- ~~Figure out what the Bombd server does (not quite up to the stage where it requests for it yet)~~
 - Properly implement messaging, profiles, friend lists, achievements (Partially done)
 - Link stuff to SQL database properly
 - Clean up messy code (theres a lot)
