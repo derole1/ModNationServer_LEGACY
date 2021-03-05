@@ -111,24 +111,24 @@ namespace ModNationServer
                 sqlite_cmd.ExecuteNonQuery();
             }
             catch { }
-            //try
-            //{
-            //    sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Views(id int, created_at datetime);";
-            //    sqlite_cmd.ExecuteNonQuery();
-            //}
-            //catch { }
-            //try
-            //{
-            //    sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Downloads(id int, created_at datetime);";
-            //    sqlite_cmd.ExecuteNonQuery();
-            //}
-            //catch { }
-            //try
-            //{
-            //    sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Points(id int, player_id int, created_at datetime);";
-            //    sqlite_cmd.ExecuteNonQuery();
-            //}
-            //catch { }
+            try
+            {
+                sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Views(id int, player_id int, created_at datetime);";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
+                sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Downloads(id int, player_id int, created_at datetime);";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
+                sqlite_cmd.CommandText = "CREATE TABLE Player_Creation_Points(id int, player_id int, value int, created_at datetime);";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
             try
             {
                 sqlite_cmd.CommandText = "CREATE TABLE Player_Metric(id int, metric varchar, UNIQUE(id));";
@@ -144,6 +144,12 @@ namespace ModNationServer
             try
             {
                 sqlite_cmd.CommandText = "CREATE TABLE Mail_Messages(id int, type varchar, reply_id int, recipient_list varchar, subject varchar, body varchar, attachment_reference varchar, UNIQUE(id));";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
+                sqlite_cmd.CommandText = "CREATE TABLE Achievements(id int, player_id int, achievement_type_id int, created_at datetime, updated_at datetime, has_read bool, player_creation_id int, relevant bool, value int, UNIQUE(id));";
                 sqlite_cmd.ExecuteNonQuery();
             }
             catch { }

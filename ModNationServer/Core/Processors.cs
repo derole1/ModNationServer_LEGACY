@@ -240,7 +240,7 @@ namespace ModNationServer
                                             break;
                                         case "achievement.list.xml":
                                             DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
-                                            respond = Handlers.AchievementListHandler(request, response, urlEncodedData, resDoc);
+                                            respond = Handlers.AchievementListHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                             break;
                                         case "content_update.latest.xml":
                                             DecodeURLEncoding(request.RawUrl.Substring(paramStart, request.RawUrl.Length - paramStart), urlEncodedData);
@@ -294,9 +294,12 @@ namespace ModNationServer
                                 }
                                 else
                                 {
-                                    respond = true;
-                                    resDoc.ChildNodes[0].ChildNodes[0].ChildNodes[0].InnerText = "-105";
-                                    resDoc.ChildNodes[0].ChildNodes[0].ChildNodes[1].InnerText = "NP Auth Failed: ticket is expired";
+                                    //respond = true;
+                                    //resDoc.ChildNodes[0].ChildNodes[0].ChildNodes[0].InnerText = "-105";
+                                    //resDoc.ChildNodes[0].ChildNodes[0].ChildNodes[1].InnerText = "NP Auth Failed: ticket is expired";
+                                    sqlite_conn.Close();
+                                    output.Close();
+                                    response.Close();
                                 }
                                 break;
                         }
@@ -322,7 +325,7 @@ namespace ModNationServer
             } catch { }
         }
 
-        public static void DirectoryServerProcessor(TcpClient client, X509Certificate2 cert)
+        public static void DirectoryServerProcessor(string service, TcpClient client, X509Certificate2 cert)
         {
             try
             {
@@ -335,6 +338,7 @@ namespace ModNationServer
                 while (client.Connected)
                 {
                     XmlDocument recDoc = GetXmlDoc(ReadData(ssl));
+                    //Thread.Sleep(30000);
                     //Drop the connection for now as we dont know response format
                     //ssl.Close();
                     //client.Close();
@@ -343,23 +347,19 @@ namespace ModNationServer
                     switch (recDoc.GetElementsByTagName("method")[0].InnerText.Split(' ')[1])
                     {
                         case "startConnect":
-                            MatchingHandlers.StartConnectHandler(recDoc, resDoc);
+                            DirectoryHandlers.StartConnectHandler(service, ssl, recDoc, resDoc);
                             break;
                         case "timeSyncRequest":
-                            MatchingHandlers.TimeSyncRequestHandler(recDoc, resDoc);
+                            DirectoryHandlers.TimeSyncRequestHandler(service, ssl, recDoc, resDoc);
                             break;
                         case "getServiceList":
-                            //ssl.Close();
-                            //client.Close();
-                            //return;
-                            MatchingHandlers.GetServiceListHandler(recDoc, resDoc);
+                            DirectoryHandlers.GetServiceListHandler(service, ssl, recDoc, resDoc);
                             break;
                         default:
-                            MatchingHandlers.DefaultHandler(recDoc, resDoc);
+                            DirectoryHandlers.DefaultHandler(service, ssl, recDoc, resDoc);
                             break;
                     }
                     Console.WriteLine("Lobbying server response: {0}", resDoc.InnerXml);
-                    WriteData(ssl, resDoc);
                 }
                 ssl.Close();
             } catch { }
@@ -367,44 +367,33 @@ namespace ModNationServer
             client.Close();
         }
 
+        static int cnt = 0;
+
         static byte[] ReadData(SslStream ssl)
         {
             //Need to be able to read stream multiple times to get all data
             byte[] buffer = new byte[0];
+            int bytesExpected = 0;
+            int bytesRead = 0;
             int count = 0;
             do
             {
                 byte[] tempBuf = new byte[1024];
                 int bytes = ssl.Read(tempBuf, 0, tempBuf.Length);
                 buffer = buffer.Concat(tempBuf.Take(bytes).ToArray()).ToArray();
-                if (bytes < 1023) { break; }
+                bytesRead += bytes;
+                if (bytesExpected == 0)
+                {
+                    bytesExpected = BitConverter.ToInt32(tempBuf.Take(4).Reverse().ToArray(), 0);
+                    Console.WriteLine("Expected {0}", bytesExpected);
+                }
+                //if (bytes < 1024) { break; }
                 count++;
-            } while (true);
+            } while (bytesRead < bytesExpected);
+            File.WriteAllBytes(cnt.ToString() + ".bin", buffer);
+            count++;
             return buffer;
         }
-
-        static void WriteData(SslStream ssl, XmlDocument resDoc)
-        {
-            //Packet logs indicate the server would usually recieve some packets in 2 parts like on read, but im not sure how to
-            //implement this or if it even needs to be implemented to work
-            byte[] data = Encoding.UTF8.GetBytes(resDoc.InnerXml);
-            data = data.Concat(new byte[] { 0x00 }).ToArray();  //Add null terminator to end of xml data
-            BinaryReader br = new BinaryReader(new byte[0]);
-            br.pushInt32(data.Length + 20);  //Length of xml data
-            br.pushArray(new byte[16]); //Padding
-            br.pushUInt32(0x64FEFFFF);  //??? (Checksum maybe, taken from request)
-            byte[] buffer = br.getRes();
-            buffer = buffer.Concat(data.ToArray()).ToArray();
-            int bytesRead = 0;
-            do
-            {
-                int toWrite = Math.Min(buffer.Length - bytesRead, 1024);
-                ssl.Write(buffer, bytesRead, toWrite);
-                bytesRead += toWrite;
-            } while (bytesRead < buffer.Length);
-            //Console.WriteLine("Done!");
-        }
-
 
         static XmlDocument GetXmlDoc(byte[] data)
         {
@@ -418,7 +407,6 @@ namespace ModNationServer
         static XmlDocument InitResXml(XmlDocument recDoc)
         {
             //Creates response body
-            //Outside of TRANSACTION_TYPE_REPLY this might ALL be wrong
             XmlDocument doc = new XmlDocument();
             XmlElement service = doc.CreateElement("service");
             service.SetAttribute("name", recDoc.ChildNodes[0].Attributes["name"].InnerText);

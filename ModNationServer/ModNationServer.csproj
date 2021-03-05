@@ -76,16 +76,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BinaryReader.cs" />
-    <Compile Include="DatabaseManager.cs" />
-    <Compile Include="DirectorySessionManager.cs" />
-    <Compile Include="Handlers.cs" />
-    <Compile Include="MatchingHandlers.cs" />
-    <Compile Include="Processors.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="Helpers\BinaryReader.cs" />
+    <Compile Include="Managers\DatabaseManager.cs" />
+    <Compile Include="Managers\DirectorySessionManager.cs" />
+    <Compile Include="Handlers\Handlers.cs" />
+    <Compile Include="Handlers\DirectoryHandlers.cs" />
+    <Compile Include="Core\Processors.cs" />
+    <Compile Include="Core\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ServerValues.cs" />
-    <Compile Include="SessionManager.cs" />
+    <Compile Include="Parameters\ServerValues.cs" />
+    <Compile Include="Managers\SessionManager.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

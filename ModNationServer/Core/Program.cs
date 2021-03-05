@@ -9,6 +9,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using System.Data.SQLite;
 
+using System.Runtime.Serialization.Formatters.Binary;
+
 namespace ModNationServer
 {
     class Program
@@ -36,8 +38,22 @@ namespace ModNationServer
         public static string matchingIp = "127.0.0.1";
         public static int matchingPort = 10501;
 
+        static void test()
+        {
+            Dictionary<string, string> lst = new Dictionary<string, string>();
+            lst.Add("matchmaking", "127.0.0.1:10501:tcp");
+            lst.Add("playgroup", "127.0.0.1:10502:tcp");
+            using (Stream stream = File.Open("data.bin", FileMode.Create))
+            {
+                BinaryFormatter bin = new BinaryFormatter();
+                bin.Serialize(stream, lst);
+            }
+        }
+
         static void Main(string[] args)
         {
+            //test();
+            //return;
             ReadConfigFile("config.ini");
             DatabaseManager.connectionString = "Data Source=" + config["database"] + ";Version=3;";
             ip = config["ip"];
@@ -61,7 +77,12 @@ namespace ModNationServer
             }
             //Set up server threads
             Thread ms = new Thread(() => MainServer("http://*:" + port.ToString() + "/"));
-            Thread ds = new Thread(() => DirectoryServer(IPAddress.Any, matchingPort, config["directory_cert"], config["directory_cert_pass"]));
+            Thread ds = new Thread(() => BombServer("directory", IPAddress.Any, matchingPort, config["directory_cert"], config["directory_cert_pass"]));
+            //TODO: Update the BombServer function to handle both TCP and RUDP
+            //Original server also used same cert for all servers.
+            new Thread(() => BombServer("matchmaking", IPAddress.Any, 10502, config["directory_cert"], config["directory_cert_pass"])).Start();
+            new Thread(() => BombServer("gamebrowser", IPAddress.Any, 10503, config["directory_cert"], config["directory_cert_pass"])).Start();
+            new Thread(() => BombServer("gamemanager", IPAddress.Any, 10504, config["directory_cert"], config["directory_cert_pass"])).Start();
             ms.Start();
             ds.Start();
             //Start up statistic thread (To update downloads/views this/last week etc)
@@ -101,20 +122,20 @@ namespace ModNationServer
             }
         }
 
-        static void DirectoryServer(IPAddress ip, int port, string certPath, string certPass)
+        static void BombServer(string service, IPAddress ip, int port, string certPath, string certPass)
         {
             //Load the certificate to use
             X509Certificate2 serverCertificate = new X509Certificate2(certPath, certPass);
             //Set up a TCPListener
             TcpListener listener = new TcpListener(ip, port);
             listener.Start();
-            Console.WriteLine("Session server listening on {0}:{1}", ip, port);
+            Console.WriteLine("Bomb {0} server listening on {1}:{2}", service, ip, port);
             while (true)
             {
                 try {
                     //Get TCPClient and pass to a new thread
                     TcpClient client = listener.AcceptTcpClient();
-                    new Thread(() => Processors.DirectoryServerProcessor(client, serverCertificate)).Start();
+                    new Thread(() => Processors.DirectoryServerProcessor(service, client, serverCertificate)).Start();
                 } catch { }
             }
         }
@@ -152,6 +173,7 @@ namespace ModNationServer
             }
         }
 
+        //Read config file, create one if it doesnt exist
         static void ReadConfigFile(string file)
         {
             if (!File.Exists(file))
@@ -159,6 +181,7 @@ namespace ModNationServer
                 File.WriteAllText(file, "#Config file for ModNation server\r\n"
                     + "ip=127.0.0.1\r\n"
                     + "port=10050\r\n"
+                    + "cluster_uuid=00000000-0000-0000-0000-000000000000\r\n"
                     + "directory_ip=127.0.0.1\r\n"
                     + "directory_port=10501\r\n"
                     + "directory_cert=output.pfx\r\n"
