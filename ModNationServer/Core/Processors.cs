@@ -277,6 +277,9 @@ namespace ModNationServer
                                         case "favorite_player.remove.xml":
                                             respond = Handlers.FavoritePlayerRemoveHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                             break;
+                                        case "single_player_game.create_finish_and_post_stats.xml":
+                                            //respond = Handlers.SinglePlayerGameCreateFinishAndPostStatsHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
+                                            break;
                                         case "player_profile.update.xml":
                                             respond = Handlers.PlayerProfileUpdateHandler(request, response, urlEncodedData, resDoc, sqlite_cmd);
                                             break;
@@ -338,7 +341,7 @@ namespace ModNationServer
                 while (client.Connected)
                 {
                     XmlDocument recDoc = GetXmlDoc(ReadData(ssl));
-                    //Thread.Sleep(30000);
+                    Thread.Sleep(30000);
                     //Drop the connection for now as we dont know response format
                     //ssl.Close();
                     //client.Close();

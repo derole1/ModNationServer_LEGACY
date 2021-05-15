@@ -1200,6 +1200,17 @@ namespace ModNationServer
             return true;
         }
 
+        //public static bool FavoritePlayerRemoveHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
+        //{
+        //    XmlElement res = resDoc.CreateElement("response");
+        //    //Log a favorite player into the database
+        //    DatabaseManager.NonQuery(sqlite_cmd, "DELETE FROM User_Favorite WHERE player_id=@player_id AND favorite_player_id=@favorite_player_id"
+        //        , new SQLiteParameter("@player_id", SessionManager.players[SessionManager.GetSessionID(request.Cookies["playerconnect_session_id"].Value)].player_id.ToString())
+        //        , new SQLiteParameter("@favorite_player_id", GetIDFromUserName(url["favorite_player[username]"], sqlite_cmd)));
+        //    resDoc.ChildNodes[0].AppendChild(res);
+        //    return true;
+        //}
+
         public static bool PlayerProfileUpdateHandler(HttpListenerRequest request, HttpListenerResponse response, Dictionary<string, string> url, XmlDocument resDoc, SQLiteCommand sqlite_cmd)
         {
             XmlElement res = resDoc.CreateElement("response");

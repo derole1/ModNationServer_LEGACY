@@ -47,7 +47,7 @@ namespace ModNationServer
 
             //Services
             string[] services = new string[] { "matchmaking", "gamemanager", "gamebrowser", "textcomm", "playgroup" };
-            string[] serviceProtocols = new string[] { "tcp", "tcp", "tcp", "tcp", "rudp" };
+            string[] serviceProtocols = new string[] { "tcp", "tcp", "tcp", "rudp", "tcp" };
 
             //TODO: Update config to have these stored there
             //TODO: How to terminate the list (for now we just add a bunch of padding to the end to prevent an overflow)

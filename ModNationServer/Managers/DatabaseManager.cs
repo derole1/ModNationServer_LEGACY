@@ -98,6 +98,15 @@ namespace ModNationServer
             catch { }
             try
             {
+                sqlite_cmd.CommandText = "CREATE TABLE Single_Player_Races(id int, player_id int, name varchar, description varchar, created_at datetime, updated_at datetime, downloads int, downloads_this_week int, downloads_last_week int" +
+                    ", views int, views_this_week int, views_last_week int, points int, points_today int, points_yesterday int, points_this_week int, points_last_week int, rating real, version int, tags varchar, player_creation_type varchar" +
+                    ", parent_creation_id int, parent_player_id int, original_player_id int, requires_dlc bool, dlc_keys varchar, platform varchar, is_remixable bool, longest_hang_time real, longest_drift real" +
+                    ", races_started int, races_won int, votes int, races_finished int, best_lap_time real, track_theme int, auto_reset bool, ai bool, deleted bool, UNIQUE(id));";
+                sqlite_cmd.ExecuteNonQuery();
+            }
+            catch { }
+            try
+            {
                 sqlite_cmd.CommandText = "CREATE TABLE Player_Creations(id int, player_id int, name varchar, description varchar, created_at datetime, updated_at datetime, downloads int, downloads_this_week int, downloads_last_week int" +
                     ", views int, views_this_week int, views_last_week int, points int, points_today int, points_yesterday int, points_this_week int, points_last_week int, rating real, version int, tags varchar, player_creation_type varchar" +
                     ", parent_creation_id int, parent_player_id int, original_player_id int, requires_dlc bool, dlc_keys varchar, platform varchar, is_remixable bool, longest_hang_time real, longest_drift real" +
