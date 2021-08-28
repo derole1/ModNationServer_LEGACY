@@ -1,6 +1,6 @@
 # ModNationServer
 Open source C# server for modnation racers
-NOTE: This version will be deprecated soon, the server is being rewritten and development is continuing elsewhere
+NOTE: This version will be deprecated soon, the server is being rewritten and development is continuing [here](https://github.com/derole1/ModnationServerEmu)!
 
 Currently handles regular http and SSL traffic (You will need to supply your own PKCS#12 certificate (can be self signed) and put it with the server executable.
 IMPORTANT: You will also need to enable RC4 cipher suite support on your server for the game to properly authenticate with the SSL server, run "Enable-TlsCipherSuite TLS_RSA_WITH_RC4_128_MD5" under an administrator PowerShell prompt.
